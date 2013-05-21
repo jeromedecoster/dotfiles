@@ -1,0 +1,177 @@
+#!/usr/bin/env ruby
+require 'pathname'
+require 'fileutils'
+
+# puts RUBY_PLATFORM
+# x86_64-darwin10.8.0
+
+# __END__
+# ENV.each_pair{ |k,v| puts k+'='+v}
+# chrome = Pathname.new('/Applications/Google Chrome.app')
+# puts chrome
+# puts chrome.exist?
+
+# __END__
+
+# url = 'http://google.com'
+# `arch -i386 osascript <<-EOF
+# set launched to true
+# if application "Google Chrome" is not running then
+#     set launched to false
+#     tell application "Google Chrome" to activate
+#     delay 0.5
+# end if
+# tell application "Google Chrome"
+#     if launched is false then
+#         set URL of active tab of window 1 to "#{url}"
+#     else
+#         tell window 1 to make new tab with properties {URL:"#{url}"}
+#     end if
+# end tell
+# EOF`
+
+# TERM_PROGRAM=Apple_Terminal
+# SHELL=/bin/bash
+# HOME=/Users/jerome.decoster
+# puts ENV.keys.include? 'HOME'
+# puts ENV['HOME'].index('/Users/') == 0
+
+def exit_msg(msg)
+    STDERR.puts msg
+    exit 1
+end
+
+OS = if ENV.keys.include?('HOME') and ENV['HOME'].index('/Users/') == 0
+        'OSX'
+    elsif ENV.keys.include?('OS') and ENV['OS'].index('Windows') != nil
+        'WIN'
+    else
+        exit_msg 'Aborted: Unsupported OS'
+    end
+
+
+
+if OS == 'WIN'
+    def browser url=nil
+        chrome = Pathname.new('~/AppData/Local/Google/Chrome/Application/chrome.exe').expand_path
+        firefox = Pathname.new(ENV['ProgramFiles(x86)']+'/Mozilla Firefox/firefox.exe').expand_path
+        return (chrome.exist? or firefox.exist?) if url.nil?
+        if chrome.exist?
+            `#{chrome} --incognito #{url}`
+        elsif firefox.exist?
+            `start "#{firefox}" #{url}`
+        end
+    end
+    unless browser
+        puts 'Aborted: Chrome or Firefox must be installed'
+        exit 1
+    end
+
+    git = begin `git0`; true; rescue Errno::ENOENT; false end
+    msysgit = Pathname.new(ENV['ProgramFiles(x86)']+'/Git/bin/git.exe').expand_path.exist?
+
+    # puts cmd
+    unless msysgit
+        browser 'http://code.google.com/p/msysgit/downloads/list'
+        puts 'Aborted: Msysgit must be installed'
+        exit 1
+    end
+
+    # system '%PATH%=%PATH%;12'
+    # system 'echo %PATH%'
+    unless git
+        puts '12'
+        cmd = Pathname.new(ENV['ProgramFiles(x86)']+'/Git/cmd').expand_path.to_s
+        if ENV['PATH'].split(';').index{ |e| Pathname.new(e).to_s.gsub('\\', '/.') == cmd }.nil?
+            puts 'Aborted: "C:\Program Files (x86)\Git\cmd" must be added to the system PATH'
+            exit 1
+        else
+        end
+    end
+
+
+    # C:\Ruby193\bin;C:\Program Files (x86)\Sikuli X\libs;C:\Program Files (x86)\Java\jre6\\bin;C:\Users\JER\AppData\Roaming\npm
+    # C:\Program Files\Common Files\Microsoft Shared\Windows Live;C:\Program Files (x86)\Common Files\Microsoft Shared\Windows Live;%SystemRoot%\system32;%SystemRoot%;%SystemRoot%\System32\Wbem;%SYSTEMROOT%\System32\WindowsPowerShell\v1.0\;C:\Program Files (x86)\ATI Technologies\ATI.ACE\Core-Static;C:\Program Files (x86)\Windows Live\Shared;C:\Program Files (x86)\Common Files\Roxio Shared\OEM\DLLShared\;C:\Program Files (x86)\Common Files\Roxio Shared\OEM\DLLShared\;C:\Program Files (x86)\Common Files\Roxio Shared\OEM\12.0\DLLShared\;C:\Program Files (x86)\Roxio\OEM\AudioCore\;C:\Program Files (x86)\Common Files\Acronis\SnapAPI\;C:\Program Files (x86)\QuickTime\QTSystem\;C:\Jer\bin;C:\Python27;C:\Program Files (x86)\MKVToolNix;C:\Program Files\nodejs\;C:\Program Files (x86)\Git\cmd
+  # unless browser
+   # start "C:\Program Files (x86)\Mozilla Firefox\firefox.exe" "-new-tab google.fr"
+  #   browser = "start #{firefox} --private" if firefox.exist?
+
+  # # puts "browser:#{browser}"
+  # end
+
+  
+  # has_.exist?
+  # puts "has_git:#{has_git}"
+  # puts "has_chrome:#{has_chrome}"
+  # puts "has_firefox:#{has_firefox}"
+  # puts ENV.inspect
+  # if !has_git
+  #   puts "no"
+  # end
+else # osx
+    def browser url=nil
+        chrome  = Pathname.new '/Applications/Google Chrome.app'
+        firefox = Pathname.new '/Applications/Firefox.app'
+        return (chrome.exist? or firefox.exist?) if url.nil?
+        url = "http://#{url}" unless url.index('http') == 0
+        if chrome.exist?
+            `arch -i386 osascript <<-EOF
+                set launched to true
+                if application "Google Chrome" is not running then
+                    set launched to false
+                    tell application "Google Chrome" to activate
+                    delay 0.5
+                end if
+                tell application "Google Chrome"
+                    if launched is false then
+                        set URL of active tab of window 1 to "#{url}"
+                    else
+                        tell window 1 to make new tab with properties {URL:"#{url}"}
+                    end if
+                end tell
+            EOF`
+        elsif firefox.exist?
+            `open -a Firefox.app #{url}`
+        end
+    end
+
+    # Check Chrome and/or Firefox
+    exit_msg 'Aborted: Chrome or Firefox must be installed' unless browser
+
+
+    # Check Git
+    git = begin `git`; true; rescue Errno::ENOENT; false end
+    unless git
+        browser 'http://git-scm.com/download/mac'
+        exit_msg 'Aborted: Git must be installed'
+    end
+
+    dotfiles  = Pathname.new('~/.dotfiles').expand_path
+    if dotfiles.exist? and dotfiles.directory?
+        # update or uninstall
+        # exit_msg 'Aborted: Already installed'
+    else
+        `git clone git@github.com:jeromedecoster/dotfiles.git ~/.dotfiles`
+
+        
+    end
+
+    src = Pathname.new('~/.dotfiles/osx/user').expand_path
+    # Dir.chdir user
+    # puts Dir.glob '*', File::FNM_DOTMATCH
+    exclude = %w{. .. .DS_Store}
+    files = Dir.entries(src).delete_if{ |e| exclude.include? e }
+    # .map{ |e| "#{user}/#{e}" }
+    dest = Pathname.new('~').expand_path
+    files.each do |e|
+        if File.exist? "#{dest}/#{e}"
+            date = Time.now.strftime '%Y-%m-%d--%H-%M-%S'
+            FileUtils.mv "#{dest}/#{e}", "#{dest}/#{e}-backup-#{date}"
+        end
+        FileUtils.cp_r "#{src}/#{e}", "#{dest}/#{e}"
+    end
+    # files.each{ |e| FileUtils.cp_r "#{source}/#{e}", "#{dest}/#{e}" }
+    # puts dotfiles
+    # puts dotfiles.exist?
+    # puts dotfiles.directory?
+end

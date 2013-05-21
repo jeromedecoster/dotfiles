@@ -1,0 +1,20 @@
+set bell-style none
+set completion-ignore-case on
+set show-all-if-ambiguous on
+set match-hidden-files off
+set mark-directories on
+"\e[Z": menu-complete
+
+"\e[5D": backward-kill-word
+"\e[5C": kill-word
+
+"\e\e[A": beginning-of-line
+"\e\e[B": end-of-line
+"\e\e[C": forward-word
+"\e\e[D": backward-word
+
+"\el": "|"
+"\en": "~"
+"\e5": "[]\C-b\C-f"
+"\e(": "{}\C-b"
+"\e/": "\\"
