@@ -4,6 +4,7 @@ require 'fileutils'
 
 # puts RUBY_PLATFORM
 # x86_64-darwin10.8.0
+# i386-mingw32
 
 # __END__
 # ENV.each_pair{ |k,v| puts k+'='+v}
@@ -30,15 +31,24 @@ require 'fileutils'
 # end tell
 # EOF`
 
+# OSX:
 # TERM_PROGRAM=Apple_Terminal
 # SHELL=/bin/bash
 # HOME=/Users/jerome.decoster
 # puts ENV.keys.include? 'HOME'
 # puts ENV['HOME'].index('/Users/') == 0
 
-def exit_msg(msg)
+# WIN:
+# HOME=C:/Users/JER
+# OS=Windows_NT
+
+def exit_msg msg
     STDERR.puts msg
     exit 1
+end
+
+def path uri
+    Pathname.new(uri).expand_path
 end
 
 OS = if ENV.keys.include?('HOME') and ENV['HOME'].index('/Users/') == 0
@@ -52,9 +62,10 @@ OS = if ENV.keys.include?('HOME') and ENV['HOME'].index('/Users/') == 0
 
 
 if OS == 'WIN'
+    PROG = ENV['ProgramFiles(x86)']
     def browser url=nil
-        chrome = Pathname.new('~/AppData/Local/Google/Chrome/Application/chrome.exe').expand_path
-        firefox = Pathname.new(ENV['ProgramFiles(x86)']+'/Mozilla Firefox/firefox.exe').expand_path
+        chrome = path '~/AppData/Local/Google/Chrome/Application/chrome.exe'
+        firefox = path "#{PROG}/Mozilla Firefox/firefox.exe"
         return (chrome.exist? or firefox.exist?) if url.nil?
         if chrome.exist?
             `#{chrome} --incognito #{url}`
@@ -62,30 +73,26 @@ if OS == 'WIN'
             `start "#{firefox}" #{url}`
         end
     end
-    unless browser
-        puts 'Aborted: Chrome or Firefox must be installed'
-        exit 1
-    end
 
-    git = begin `git0`; true; rescue Errno::ENOENT; false end
-    msysgit = Pathname.new(ENV['ProgramFiles(x86)']+'/Git/bin/git.exe').expand_path.exist?
+    # Check Chrome and/or Firefox
+    exit_msg 'Aborted: Chrome or Firefox must be installed' unless browser
 
-    # puts cmd
-    unless msysgit
+    # Check msysGit
+    msysgit = path "#{PROG}/Git/bin/git.exe"
+    unless msysgit.exist?
         browser 'http://code.google.com/p/msysgit/downloads/list'
-        puts 'Aborted: Msysgit must be installed'
-        exit 1
+        exit_msg 'Aborted: msysGit must be installed'
     end
 
-    # system '%PATH%=%PATH%;12'
-    # system 'echo %PATH%'
+    # Check Git
+    git = begin `git`; true; rescue Errno::ENOENT; false end
     unless git
-        puts '12'
-        cmd = Pathname.new(ENV['ProgramFiles(x86)']+'/Git/cmd').expand_path.to_s
-        if ENV['PATH'].split(';').index{ |e| Pathname.new(e).to_s.gsub('\\', '/.') == cmd }.nil?
-            puts 'Aborted: "C:\Program Files (x86)\Git\cmd" must be added to the system PATH'
-            exit 1
+        cmd = path("#{PROG}/Git/cmd").to_s.gsub('/', '\\')
+        if ENV['PATH'].split(';').index{ |e| e == cmd }.nil?
+            exit_msg "Aborted: \"#{cmd}\" must be added to the system PATH"
         else
+            browser 'http://code.google.com/p/msysgit/downloads/list'
+            exit_msg 'Aborted: msysGit installed but Git can\'t be found. Install again?'
         end
     end
 
