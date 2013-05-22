@@ -51,9 +51,25 @@ def path uri
     Pathname.new(uri).expand_path
 end
 
+def copy from, to
+    from_path = path from
+    to_path = path to
+    exclude = %w{. .. .DS_Store}
+    files = Dir.entries(from_path).delete_if{ |e| exclude.include? e }
+    files.each do |e|
+        a = "#{from_path}/#{e}"
+        b = "#{to_path}/#{e}"
+        if File.exist? b
+            FileUtils.mv b, BACKUP
+            puts "backup \"#{b}\""
+        end
+        FileUtils.cp_r a, b
+    end
+end
+
 OS = if ENV.keys.include?('HOME') and ENV['HOME'].index('/Users/') == 0
         'OSX'
-    elsif ENV.keys.include?('OS') and ENV['OS'].index('Windows') != nil
+    elsif ENV.keys.include?('OS') and ENV['OS'].index('Windows') == 0
         'WIN'
     else
         exit_msg 'Aborted: Unsupported OS'
@@ -117,8 +133,8 @@ if OS == 'WIN'
   # end
 else # osx
     def browser url=nil
-        chrome  = Pathname.new '/Applications/Google Chrome.app'
-        firefox = Pathname.new '/Applications/Firefox.app'
+        chrome  = path '/Applications/Google Chrome.app'
+        firefox = path '/Applications/Firefox.app'
         return (chrome.exist? or firefox.exist?) if url.nil?
         url = "http://#{url}" unless url.index('http') == 0
         if chrome.exist?
@@ -145,15 +161,16 @@ else # osx
     # Check Chrome and/or Firefox
     exit_msg 'Aborted: Chrome or Firefox must be installed' unless browser
 
-
     # Check Git
-    git = begin `git`; true; rescue Errno::ENOENT; false end
+    git = `git 2>/dev/null`.strip.size > 0
     unless git
         browser 'http://git-scm.com/download/mac'
         exit_msg 'Aborted: Git must be installed'
     end
 
-    dotfiles  = Pathname.new('~/.dotfiles').expand_path
+    dotfiles  = path '~/.dotfiles'
+    # puts dotfiles.class
+
     if dotfiles.exist? and dotfiles.directory?
         # update or uninstall
         # exit_msg 'Aborted: Already installed'
@@ -163,20 +180,23 @@ else # osx
         
     end
 
-    src = Pathname.new('~/.dotfiles/osx/user').expand_path
-    # Dir.chdir user
-    # puts Dir.glob '*', File::FNM_DOTMATCH
-    exclude = %w{. .. .DS_Store}
-    files = Dir.entries(src).delete_if{ |e| exclude.include? e }
-    # .map{ |e| "#{user}/#{e}" }
-    dest = Pathname.new('~').expand_path
-    files.each do |e|
-        if File.exist? "#{dest}/#{e}"
-            date = Time.now.strftime '%Y-%m-%d--%H-%M-%S'
-            FileUtils.mv "#{dest}/#{e}", "#{dest}/#{e}-backup-#{date}"
-        end
-        FileUtils.cp_r "#{src}/#{e}", "#{dest}/#{e}"
-    end
+    date = Time.now.strftime '%Y-%m-%d--%H-%M-%S'
+    BACKUP = FileUtils.mkdir_p(path("~/.dotfiles-backup/#{date}")).first
+    # puts BACKUP
+
+    copy '~/.dotfiles/osx/user', '~'
+    # exit
+    # src = path '~/.dotfiles/osx/user'
+    # exclude = %w{. .. .DS_Store}
+    # files = Dir.entries(src).delete_if{ |e| exclude.include? e }
+    # # .map{ |e| "#{user}/#{e}" }
+    # dest = path '~'
+    # files.each do |e|
+    #     if File.exist? "#{dest}/#{e}"
+    #         FileUtils.mv "#{dest}/#{e}", BACKUP
+    #     end
+    #     FileUtils.cp_r "#{src}/#{e}", "#{dest}/#{e}"
+    # end
     # files.each{ |e| FileUtils.cp_r "#{source}/#{e}", "#{dest}/#{e}" }
     # puts dotfiles
     # puts dotfiles.exist?
