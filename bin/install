@@ -2,6 +2,8 @@
 require 'pathname'
 require 'fileutils'
 
+
+
 # puts RUBY_PLATFORM
 # x86_64-darwin10.8.0
 # i386-mingw32
@@ -59,10 +61,7 @@ def copy from, to
     files.each do |e|
         a = "#{from_path}/#{e}"
         b = "#{to_path}/#{e}"
-        if File.exist? b
-            FileUtils.mv b, BACKUP
-            puts "backup \"#{b}\""
-        end
+        FileUtils.mv b, BACKUP if File.exist? b
         FileUtils.cp_r a, b
     end
 end
@@ -201,4 +200,13 @@ else # osx
     # puts dotfiles
     # puts dotfiles.exist?
     # puts dotfiles.directory?
+
+
+    # Create symbolic link of Sublime Text
+    subl = path '/Applications/Sublime Text 2.app/Contents/SharedSupport/bin/subl'
+    if subl.exist?
+        link = path '/usr/local/bin/subl'
+        FileUtils.rm_f link if link.exist?
+        FileUtils.ln_s subl, link
+    end
 end
