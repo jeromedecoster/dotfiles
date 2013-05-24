@@ -1,5 +1,3 @@
-#!bash
-
 alias ..="cd .."
 alias ...="cd ../.."
 # subl is a symbolic link created during the ~/.dotfiles installation
@@ -12,6 +10,7 @@ alias gaa="git add ."
 alias gb="git branch"
 # delete a branch
 alias gbd="git branch -D"
+alias gc="git commit -m"
 alias gca="git commit -a -m"
 # switch on a branch
 alias gco="git checkout"

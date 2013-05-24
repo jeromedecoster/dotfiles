@@ -1,5 +1,3 @@
-#!/bin/bash
-
 # display svn infos when inside a repository directory
 function prompt_svn() {
     local info="$(svn info . 2> /dev/null)"
