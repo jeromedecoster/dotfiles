@@ -2,8 +2,6 @@
 require 'pathname'
 require 'fileutils'
 
-
-
 # puts RUBY_PLATFORM
 # x86_64-darwin10.8.0
 # i386-mingw32
@@ -13,6 +11,14 @@ require 'fileutils'
 # chrome = Pathname.new('/Applications/Google Chrome.app')
 # puts chrome
 # puts chrome.exist?
+
+# require 'colorize'
+# puts "This is blue".colorize( :blue )
+
+# system('powershell -Command Write-Host "Funky" -foreground "red"')
+# PowerShell only supports the 16 basic ConsoleColor enumeration values.
+# Black DarkBlue DarkGreen DarkCyan DarkRed DarkMagenta DarkYellow Gray DarkGray Blue Green Cyan Red Magenta Yellow White
+# system('powershell -Command Write-Host "Funky " -f Magenta -nonewline; Write-Host "." -nonewline; Write-Host "Boogie" -f green')
 
 # __END__
 
@@ -118,7 +124,11 @@ if OS == 'WIN'
         # update or uninstall
         # exit_msg 'Aborted: Already installed'
     else
-        `git clone git@github.com:jeromedecoster/dotfiles.git ~/.dotfiles`
+        # read-only
+        `git clone git://github.com/jeromedecoster/dotfiles.git ~/.dotfiles`
+        
+        # ssh
+        # `git clone git@github.com:jeromedecoster/dotfiles.git ~/.dotfiles`
 
         
     end
