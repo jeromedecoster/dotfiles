@@ -111,25 +111,24 @@ if OS == 'WIN'
         end
     end
 
+    dotfiles  = path '~/.dotfiles'
+    # puts dotfiles.class
 
-    # C:\Ruby193\bin;C:\Program Files (x86)\Sikuli X\libs;C:\Program Files (x86)\Java\jre6\\bin;C:\Users\JER\AppData\Roaming\npm
-    # C:\Program Files\Common Files\Microsoft Shared\Windows Live;C:\Program Files (x86)\Common Files\Microsoft Shared\Windows Live;%SystemRoot%\system32;%SystemRoot%;%SystemRoot%\System32\Wbem;%SYSTEMROOT%\System32\WindowsPowerShell\v1.0\;C:\Program Files (x86)\ATI Technologies\ATI.ACE\Core-Static;C:\Program Files (x86)\Windows Live\Shared;C:\Program Files (x86)\Common Files\Roxio Shared\OEM\DLLShared\;C:\Program Files (x86)\Common Files\Roxio Shared\OEM\DLLShared\;C:\Program Files (x86)\Common Files\Roxio Shared\OEM\12.0\DLLShared\;C:\Program Files (x86)\Roxio\OEM\AudioCore\;C:\Program Files (x86)\Common Files\Acronis\SnapAPI\;C:\Program Files (x86)\QuickTime\QTSystem\;C:\Jer\bin;C:\Python27;C:\Program Files (x86)\MKVToolNix;C:\Program Files\nodejs\;C:\Program Files (x86)\Git\cmd
-  # unless browser
-   # start "C:\Program Files (x86)\Mozilla Firefox\firefox.exe" "-new-tab google.fr"
-  #   browser = "start #{firefox} --private" if firefox.exist?
+    if dotfiles.exist? and dotfiles.directory?
+        # update or uninstall
+        # exit_msg 'Aborted: Already installed'
+    else
+        `git clone git@github.com:jeromedecoster/dotfiles.git ~/.dotfiles`
 
-  # # puts "browser:#{browser}"
-  # end
+        
+    end
 
-  
-  # has_.exist?
-  # puts "has_git:#{has_git}"
-  # puts "has_chrome:#{has_chrome}"
-  # puts "has_firefox:#{has_firefox}"
-  # puts ENV.inspect
-  # if !has_git
-  #   puts "no"
-  # end
+    date = Time.now.strftime '%Y-%m-%d--%H-%M-%S'
+    BACKUP = FileUtils.mkdir_p(path("~/.dotfiles-backup/#{date}")).first
+    # puts BACKUP
+
+    copy '~/.dotfiles/osx/user', '~'
+    
 else # osx
     def browser url=nil
         chrome  = path '/Applications/Google Chrome.app'
