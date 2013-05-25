@@ -1,10 +1,21 @@
 #!/usr/bin/env ruby
 require 'pathname'
 require 'fileutils'
+require 'open3'
 
 # puts RUBY_PLATFORM
 # x86_64-darwin10.8.0
 # i386-mingw32
+
+
+# def ko
+#     system('powershell -Command Write-Host "OK" -f red')
+# end
+# print "Check browsers..."
+# done
+# print "Check lorem ipsum..."
+# done false
+
 
 # __END__
 # ENV.each_pair{ |k,v| puts k+'='+v}
@@ -45,6 +56,13 @@ require 'fileutils'
 # HOME=/Users/jerome.decoster
 # puts ENV.keys.include? 'HOME'
 # puts ENV['HOME'].index('/Users/') == 0
+ # ruby -e "require 'open-uri'; require 'openssl'; OpenSSL::SSL::VERIFY_PEER = OpenSSL::SSL::VERIFY_NONE; eval open('https://raw.github.com/jeromedecoster/dotfiles/master/bin/install').read"
+# (New-Object System.Net.WebClient).DownloadFile("https://raw.github.com/jeromedecoster/dotfiles/master/bin/install","f:\\install")
+# (New-Object System.Net.WebClient).DownloadFile("https://raw.github.com/jeromedecoster/dotfiles/master/bin/install","$pwd\install"); Start-Process "ruby" "$pwd\install"
+# $f="$env:temp\install";(New-Object System.Net.WebClient).DownloadFile("https://raw.github.com/jeromedecoster/dotfiles/master/bin/install",$f);Start-Process "ruby" "$f"
+# Start-Process "ruby" "G:\TMP\install.rb"
+# $f="$env:temp\install";(New-Object System.Net.WebClient).DownloadFile("https://raw.github.com/jeromedecoster/dotfiles/master/bin/install",$f);Start-Process "ruby" "$f"
+
 
 # WIN:
 # HOME=C:/Users/JER
@@ -55,10 +73,33 @@ def exit_msg msg
     exit 1
 end
 
+OS = if ENV.keys.include?('HOME') and ENV['HOME'].index('/Users/') == 0
+        'OSX'
+    elsif ENV.keys.include?('OS') and ENV['OS'].index('Windows') == 0
+        'WIN'
+    else
+        exit_msg 'Aborted: Unsupported operating system'
+    end
+
+def done ok=true
+    msg = ok ? 'OK' : 'KO'
+    if OS == 'WIN'
+        col = ok ? 'green' : 'red'
+        system "powershell -Command Write-Host '#{msg}' -f #{col}"
+    else
+        puts ''
+    end
+end
+
 def path uri
     Pathname.new(uri).expand_path
 end
 
+# print "Check browsers..."
+# done
+# print "Check lorem ipsum..."
+# done false
+# __END__
 def copy from, to
     from_path = path from
     to_path = path to
@@ -72,13 +113,6 @@ def copy from, to
     end
 end
 
-OS = if ENV.keys.include?('HOME') and ENV['HOME'].index('/Users/') == 0
-        'OSX'
-    elsif ENV.keys.include?('OS') and ENV['OS'].index('Windows') == 0
-        'WIN'
-    else
-        exit_msg 'Aborted: Unsupported OS'
-    end
 
 
 
@@ -96,26 +130,44 @@ if OS == 'WIN'
     end
 
     # Check Chrome and/or Firefox
-    exit_msg 'Aborted: Chrome or Firefox must be installed' unless browser
+    print "Check browsers..."
+    unless browser
+        done false
+        exit_msg 'Aborted: Chrome or Firefox must be installed'
+    end
+    done
 
     # Check msysGit
+    print "Check msysGit..."
     msysgit = path "#{PROG}/Git/bin/git.exe"
     unless msysgit.exist?
+        done false
+        sleep 1
         browser 'http://code.google.com/p/msysgit/downloads/list'
         exit_msg 'Aborted: msysGit must be installed'
     end
+    done
 
     # Check Git
-    git = begin `git`; true; rescue Errno::ENOENT; false end
+    print "Check git..."
+    git = begin
+            `git`
+            true
+        rescue Errno::ENOENT
+            false
+        end
     unless git
         cmd = path("#{PROG}/Git/cmd").to_s.gsub('/', '\\')
+        done false
         if ENV['PATH'].split(';').index{ |e| e == cmd }.nil?
             exit_msg "Aborted: \"#{cmd}\" must be added to the system PATH"
         else
+            sleep 1
             browser 'http://code.google.com/p/msysgit/downloads/list'
-            exit_msg 'Aborted: msysGit installed but Git can\'t be found. Install again?'
+            exit_msg "Aborted: msysGit installed but git not available as CLI"
         end
     end
+    done
 
     dotfiles  = path '~/.dotfiles'
     # puts dotfiles.class
@@ -125,19 +177,29 @@ if OS == 'WIN'
         # exit_msg 'Aborted: Already installed'
     else
         # read-only
-        `git clone git://github.com/jeromedecoster/dotfiles.git ~/.dotfiles`
-        
+        print "Clone repository..."
+        o, e, s = Open3.capture3 "git clone --quiet git://github.com/jeromedecoster/dotfiles.git0 #{dotfiles.to_s}"
+        # puts "o:#{o}"
+        # puts "e:#{e}"
+        # puts "s:#{s.success?}"
+        unless s.success?
+            done false
+            exit_msg e
+        end
+        done
+        # puts "res:#{res}"
         # ssh
         # `git clone git@github.com:jeromedecoster/dotfiles.git ~/.dotfiles`
 
         
     end
 
-    date = Time.now.strftime '%Y-%m-%d--%H-%M-%S'
-    BACKUP = FileUtils.mkdir_p(path("~/.dotfiles-backup/#{date}")).first
-    # puts BACKUP
+    # exit
+    # date = Time.now.strftime '%Y-%m-%d--%H-%M-%S'
+    # BACKUP = FileUtils.mkdir_p(path("~/.dotfiles-backup/#{date}")).first
+    # # puts BACKUP
 
-    copy '~/.dotfiles/osx/user', '~'
+    # copy '~/.dotfiles/osx/user', '~'
     
 else # osx
     def browser url=nil
@@ -219,3 +281,10 @@ else # osx
         FileUtils.ln_s subl, link
     end
 end
+
+#
+date = Time.now.strftime '%Y-%m-%d--%H-%M-%S'
+BACKUP = FileUtils.mkdir_p(path("~/.dotfiles-backup/#{date}")).first
+# puts BACKUP
+
+copy '~/.dotfiles/osx/user', '~'
