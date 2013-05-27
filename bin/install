@@ -17,8 +17,9 @@ require 'open3'
 # done false
 
 
-# __END__
 # ENV.each_pair{ |k,v| puts k+'='+v}
+# ENV['PATH'].split(';').each{ |k| puts k}
+# __END__
 # chrome = Pathname.new('/Applications/Google Chrome.app')
 # puts chrome
 # puts chrome.exist?
@@ -31,6 +32,11 @@ require 'open3'
 # Black DarkBlue DarkGreen DarkCyan DarkRed DarkMagenta DarkYellow Gray DarkGray Blue Green Cyan Red Magenta Yellow White
 # system('powershell -Command Write-Host "Funky " -f Magenta -nonewline; Write-Host "." -nonewline; Write-Host "Boogie" -f green')
 
+# [Environment]::SetEnvironmentVariable( "INCLUDE", $env:INCLUDE, [System.EnvironmentVariableTarget]::User )
+# [System.Environment]::SetEnvironmentVariable("PATH", $Env:Path + ";C:\Users\JER\bin", [System.EnvironmentVariableTarget]::Machine)
+
+# %SystemRoot%\system32\WindowsPowerShell\v1.0\;C:\Program Files\Common Files\Microsoft Shared\Windows Live;C:\Program Files (x86)\Common Files\Microsoft Shared\Windows Live;C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\;C:\Program Files (x86)\ATI Technologies\ATI.ACE\Core-Static;C:\Program Files (x86)\Windows Live\Shared;C:\Program Files (x86)\Common Files\Roxio Shared\OEM\DLLShared\;C:\Program Files (x86)\Common Files\Roxio Shared\OEM\DLLShared\;C:\Program Files (x86)\Common Files\Roxio Shared\OEM\12.0\DLLShared\;C:\Program Files (x86)\Roxio\OEM\AudioCore\;C:\Program Files (x86)\Common Files\Acronis\SnapAPI\;C:\Program Files (x86)\QuickTime\QTSystem\;C:\Jer\bin;C:\Python27;C:\Program Files (x86)\MKVToolNix;C:\Program Files\nodejs\;C:\Program Files (x86)\Git\cmd;C:\Ruby193\bin;C:\Program Files (x86)\Sikuli X\libs;C:\Program Files (x86)\Java\jre6\\bin;C:\Users\JE
+# C:\Windows\system32\WindowsPowerShell\v1.0\;C:\Program Files\Common Files\Microsoft Shared\Windows Live;C:\Program Files (x86)\Common Files\Microsoft Shared\Windows Live;C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\;C:\Program Files (x86)\ATI Technologies\ATI.ACE\Core-Static;C:\Program Files (x86)\Windows Live\Shared;C:\Program Files (x86)\Common Files\Roxio Shared\OEM\DLLShared\;C:\Program Files (x86)\Common Files\Roxio Shared\OEM\DLLShared\;C:\Program Files (x86)\Common Files\Roxio Shared\OEM\12.0\DLLShared\;C:\Program Files (x86)\Roxio\OEM\AudioCore\;C:\Program Files (x86)\Common Files\Acronis\SnapAPI\;C:\Program Files (x86)\QuickTime\QTSystem\;C:\Jer\bin;C:\Python27;C:\Program Files (x86)\MKVToolNix;C:\Program Files\nodejs\;C:\Program Files (x86)\Git\cmd;
 # __END__
 
 # url = 'http://google.com'
@@ -62,6 +68,10 @@ require 'open3'
 # $f="$env:temp\install";(New-Object System.Net.WebClient).DownloadFile("https://raw.github.com/jeromedecoster/dotfiles/master/bin/install",$f);Start-Process "ruby" "$f"
 # Start-Process "ruby" "G:\TMP\install.rb"
 # $f="$env:temp\install";(New-Object System.Net.WebClient).DownloadFile("https://raw.github.com/jeromedecoster/dotfiles/master/bin/install",$f);Start-Process "ruby" "$f"
+# ls env:
+# USERPROFILE
+# [System.Environment]::SetEnvironmentVariable("PATH",$env:path+";"+$env:userprofile+"\bin", "Machine")
+# [System.Environment]::SetEnvironmentVariable("PATH",$env:path+";"+$env:userprofile+"\bin", "User")
 
 
 # WIN:
@@ -112,6 +122,18 @@ def copy from, to
         FileUtils.cp_r a, b
     end
 end
+
+
+# $ws = New-Object -ComObject WScript.Shell
+# $Shortcut = $ws.CreateShortcut("$Home\bin\subl.lnk")
+# $Shortcut.TargetPath = "C:\Program Files\Sublime Text 2\sublime_text.exe"
+# $Shortcut.Save()
+
+# Set-ShortCut "$Home\bin\subl.lnk" "C:\Program Files\Sublime Text 2\sublime_text.exe"
+# subl = path 'C:\Program Files\Sublime Text 2\sublime_text.exe'
+# link = path '~/bin/subl'
+# FileUtils.ln_s subl, link
+# __END__
 
 
 
@@ -178,7 +200,7 @@ if OS == 'WIN'
     else
         # read-only
         print "Clone repository..."
-        o, e, s = Open3.capture3 "git clone --quiet git://github.com/jeromedecoster/dotfiles.git0 #{dotfiles.to_s}"
+        o, e, s = Open3.capture3 "git clone --quiet git://github.com/jeromedecoster/dotfiles.git #{dotfiles.to_s}"
         # puts "o:#{o}"
         # puts "e:#{e}"
         # puts "s:#{s.success?}"
