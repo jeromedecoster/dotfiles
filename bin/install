@@ -7,29 +7,10 @@ require 'open3'
 # x86_64-darwin10.8.0
 # i386-mingw32
 
-
-# def ko
-#     system('powershell -Command Write-Host "OK" -f red')
-# end
-# print "Check browsers..."
-# done
-# print "Check lorem ipsum..."
-# done false
-
-
 # ENV.each_pair{ |k,v| puts k+'='+v}
 # ENV['PATH'].split(';').each{ |k| puts k}
 # __END__
-# chrome = Pathname.new('/Applications/Google Chrome.app')
-# puts chrome
-# puts chrome.exist?
 
-# require 'colorize'
-# puts "This is blue".colorize( :blue )
-
-# system('powershell -Command Write-Host "Funky" -foreground "red"')
-# PowerShell only supports the 16 basic ConsoleColor enumeration values.
-# Black DarkBlue DarkGreen DarkCyan DarkRed DarkMagenta DarkYellow Gray DarkGray Blue Green Cyan Red Magenta Yellow White
 # system('powershell -Command Write-Host "Funky " -f Magenta -nonewline; Write-Host "." -nonewline; Write-Host "Boogie" -f green')
 
 # [Environment]::SetEnvironmentVariable( "INCLUDE", $env:INCLUDE, [System.EnvironmentVariableTarget]::User )
@@ -39,22 +20,6 @@ require 'open3'
 # C:\Windows\system32\WindowsPowerShell\v1.0\;C:\Program Files\Common Files\Microsoft Shared\Windows Live;C:\Program Files (x86)\Common Files\Microsoft Shared\Windows Live;C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\;C:\Program Files (x86)\ATI Technologies\ATI.ACE\Core-Static;C:\Program Files (x86)\Windows Live\Shared;C:\Program Files (x86)\Common Files\Roxio Shared\OEM\DLLShared\;C:\Program Files (x86)\Common Files\Roxio Shared\OEM\DLLShared\;C:\Program Files (x86)\Common Files\Roxio Shared\OEM\12.0\DLLShared\;C:\Program Files (x86)\Roxio\OEM\AudioCore\;C:\Program Files (x86)\Common Files\Acronis\SnapAPI\;C:\Program Files (x86)\QuickTime\QTSystem\;C:\Jer\bin;C:\Python27;C:\Program Files (x86)\MKVToolNix;C:\Program Files\nodejs\;C:\Program Files (x86)\Git\cmd;
 # __END__
 
-# url = 'http://google.com'
-# `arch -i386 osascript <<-EOF
-# set launched to true
-# if application "Google Chrome" is not running then
-#     set launched to false
-#     tell application "Google Chrome" to activate
-#     delay 0.5
-# end if
-# tell application "Google Chrome"
-#     if launched is false then
-#         set URL of active tab of window 1 to "#{url}"
-#     else
-#         tell window 1 to make new tab with properties {URL:"#{url}"}
-#     end if
-# end tell
-# EOF`
 
 # OSX:
 # TERM_PROGRAM=Apple_Terminal
@@ -62,7 +27,7 @@ require 'open3'
 # HOME=/Users/jerome.decoster
 # puts ENV.keys.include? 'HOME'
 # puts ENV['HOME'].index('/Users/') == 0
- # ruby -e "require 'open-uri'; require 'openssl'; OpenSSL::SSL::VERIFY_PEER = OpenSSL::SSL::VERIFY_NONE; eval open('https://raw.github.com/jeromedecoster/dotfiles/master/bin/install').read"
+# ruby -e "require 'open-uri'; require 'openssl'; OpenSSL::SSL::VERIFY_PEER = OpenSSL::SSL::VERIFY_NONE; eval open('https://raw.github.com/jeromedecoster/dotfiles/master/bin/install').read"
 # (New-Object System.Net.WebClient).DownloadFile("https://raw.github.com/jeromedecoster/dotfiles/master/bin/install","f:\\install")
 # (New-Object System.Net.WebClient).DownloadFile("https://raw.github.com/jeromedecoster/dotfiles/master/bin/install","$pwd\install"); Start-Process "ruby" "$pwd\install"
 # $f="$env:temp\install";(New-Object System.Net.WebClient).DownloadFile("https://raw.github.com/jeromedecoster/dotfiles/master/bin/install",$f);Start-Process "ruby" "$f"
@@ -84,20 +49,24 @@ def exit_msg msg
 end
 
 OS = if ENV.keys.include?('HOME') and ENV['HOME'].index('/Users/') == 0
-        'OSX'
+        'osx'
     elsif ENV.keys.include?('OS') and ENV['OS'].index('Windows') == 0
-        'WIN'
+        'win'
     else
         exit_msg 'Aborted: Unsupported operating system'
     end
 
 def done ok=true
     msg = ok ? 'OK' : 'KO'
-    if OS == 'WIN'
+    if OS == 'win'
+        # PowerShell only supports the 16 basic ConsoleColor enumeration values.
+        # Black DarkBlue DarkGreen DarkCyan DarkRed DarkMagenta DarkYellow
+        # Gray DarkGray Blue Green Cyan Red Magenta Yellow White
         col = ok ? 'green' : 'red'
         system "powershell -Command Write-Host '#{msg}' -f #{col}"
     else
-        puts ''
+        col = ok ? "\033[0;32m" : "\033[0;31m"
+        puts "#{col}#{msg}\033[0m"
     end
 end
 
@@ -105,11 +74,6 @@ def path uri
     Pathname.new(uri).expand_path
 end
 
-# print "Check browsers..."
-# done
-# print "Check lorem ipsum..."
-# done false
-# __END__
 def copy from, to
     from_path = path from
     to_path = path to
@@ -123,7 +87,6 @@ def copy from, to
     end
 end
 
-
 # $ws = New-Object -ComObject WScript.Shell
 # $Shortcut = $ws.CreateShortcut("$Home\bin\subl.lnk")
 # $Shortcut.TargetPath = "C:\Program Files\Sublime Text 2\sublime_text.exe"
@@ -133,12 +96,17 @@ end
 # subl = path 'C:\Program Files\Sublime Text 2\sublime_text.exe'
 # link = path '~/bin/subl'
 # FileUtils.ln_s subl, link
+
+# print "Check browsers..."
+# done
+# print "Check truc..."
+# done false
 # __END__
 
 
 
 
-if OS == 'WIN'
+if OS == 'win'
     PROG = ENV['ProgramFiles(x86)']
     def browser url=nil
         chrome = path '~/AppData/Local/Google/Chrome/Application/chrome.exe'
@@ -191,39 +159,8 @@ if OS == 'WIN'
     end
     done
 
-    dotfiles  = path '~/.dotfiles'
-    # puts dotfiles.class
-
-    if dotfiles.exist? and dotfiles.directory?
-        # update or uninstall
-        # exit_msg 'Aborted: Already installed'
-    else
-        # read-only
-        print "Clone repository..."
-        o, e, s = Open3.capture3 "git clone --quiet git://github.com/jeromedecoster/dotfiles.git #{dotfiles.to_s}"
-        # puts "o:#{o}"
-        # puts "e:#{e}"
-        # puts "s:#{s.success?}"
-        unless s.success?
-            done false
-            exit_msg e
-        end
-        done
-        # puts "res:#{res}"
-        # ssh
-        # `git clone git@github.com:jeromedecoster/dotfiles.git ~/.dotfiles`
-
-        
-    end
-
-    # exit
-    # date = Time.now.strftime '%Y-%m-%d--%H-%M-%S'
-    # BACKUP = FileUtils.mkdir_p(path("~/.dotfiles-backup/#{date}")).first
-    # # puts BACKUP
-
-    # copy '~/.dotfiles/osx/user', '~'
-    
-else # osx
+# OS == 'OSX'
+else 
     def browser url=nil
         chrome  = path '/Applications/Google Chrome.app'
         firefox = path '/Applications/Firefox.app'
@@ -251,62 +188,63 @@ else # osx
     end
 
     # Check Chrome and/or Firefox
-    exit_msg 'Aborted: Chrome or Firefox must be installed' unless browser
+    print "Check browsers..."
+    unless browser
+        done false
+        exit_msg 'Aborted: Chrome or Firefox must be installed'
+    end
+    done
 
     # Check Git
+    print "Check git..."
     git = `git 2>/dev/null`.strip.size > 0
     unless git
+        done false
+        sleep 1
         browser 'http://git-scm.com/download/mac'
         exit_msg 'Aborted: Git must be installed'
     end
-
-    dotfiles  = path '~/.dotfiles'
-    # puts dotfiles.class
-
-    if dotfiles.exist? and dotfiles.directory?
-        # update or uninstall
-        # exit_msg 'Aborted: Already installed'
-    else
-        `git clone git@github.com:jeromedecoster/dotfiles.git ~/.dotfiles`
-
-        
-    end
-
-    date = Time.now.strftime '%Y-%m-%d--%H-%M-%S'
-    BACKUP = FileUtils.mkdir_p(path("~/.dotfiles-backup/#{date}")).first
-    # puts BACKUP
-
-    copy '~/.dotfiles/osx/user', '~'
-    # exit
-    # src = path '~/.dotfiles/osx/user'
-    # exclude = %w{. .. .DS_Store}
-    # files = Dir.entries(src).delete_if{ |e| exclude.include? e }
-    # # .map{ |e| "#{user}/#{e}" }
-    # dest = path '~'
-    # files.each do |e|
-    #     if File.exist? "#{dest}/#{e}"
-    #         FileUtils.mv "#{dest}/#{e}", BACKUP
-    #     end
-    #     FileUtils.cp_r "#{src}/#{e}", "#{dest}/#{e}"
-    # end
-    # files.each{ |e| FileUtils.cp_r "#{source}/#{e}", "#{dest}/#{e}" }
-    # puts dotfiles
-    # puts dotfiles.exist?
-    # puts dotfiles.directory?
-
-
-    # Create symbolic link of Sublime Text
-    subl = path '/Applications/Sublime Text 2.app/Contents/SharedSupport/bin/subl'
-    if subl.exist?
-        link = path '/usr/local/bin/subl'
-        FileUtils.rm_f link if link.exist?
-        FileUtils.ln_s subl, link
-    end
+    done
 end
+
+
+dotfiles = path '~/.dotfiles'
+
+if dotfiles.exist? and dotfiles.directory?
+    # update or uninstall
+    # exit_msg 'Aborted: Already installed'
+    print "Update repository..."
+    pwd = Dir.pwd
+    Dir.chdir dotfiles
+    o, e, s = Open3.capture3 "git pull"
+    Dir.chdir pwd
+else
+    # read-only
+    print "Clone repository..."
+    # o, e, s = Open3.capture3 "git clone --quiet https://github.com/jeromedecoster/dotfiles.git #{dotfiles.to_s}"
+    # o, e, s = Open3.capture3 "git clone --quiet git://github.com/jeromedecoster/dotfiles.git #{dotfiles.to_s}"
+    o, e, s = Open3.capture3 "git clone --quiet git@github.com:jeromedecoster/dotfiles.git #{dotfiles.to_s}"
+    # puts "o:#{o}"
+    # puts "e:#{e}"
+    # puts "s:#{s.success?}"
+end
+unless s.success?
+    done false
+    exit_msg e
+end
+done
 
 #
 date = Time.now.strftime '%Y-%m-%d--%H-%M-%S'
 BACKUP = FileUtils.mkdir_p(path("~/.dotfiles-backup/#{date}")).first
 # puts BACKUP
 
-copy '~/.dotfiles/osx/user', '~'
+copy "~/.dotfiles/#{OS}/user", '~'
+
+# Create symbolic link of Sublime Text
+subl = path '/Applications/Sublime Text 2.app/Contents/SharedSupport/bin/subl'
+if subl.exist?
+    link = path '/usr/local/bin/subl'
+    FileUtils.rm_f link if link.exist?
+    FileUtils.ln_s subl, link
+end

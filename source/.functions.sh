@@ -1,5 +1,3 @@
-#!/bash
-
 # t is the new touch, yo
 # touch multiple files at once. It also create folders recursively if necessary
 # example, create 2 files in the pwd: t file1 file2
@@ -60,7 +58,7 @@ function tx() {
         unset arg
     else
         # write the usage message in the stderr and
-        # return the exitcode 1 without quit the terminal (yeah baby)
+        # return the exitcode 1 without quit the terminal
         # echo $? after the usage message will write 1
         local msg=$(cat <<EOF
 usage: tx [-r] file [file] ...
@@ -80,7 +78,7 @@ function mk() {
         cd "${@: -1}"
     else
         # write the usage message in the stderr and
-        # return the exitcode 1 without quit the terminal (yeah baby)
+        # return the exitcode 1 without quit the terminal
         # echo $? after the usage message will write 1
         $(echo "usage: mk directory [directory] ..." >&2; exit 1)
     fi

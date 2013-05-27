@@ -9,7 +9,7 @@ My OS X / Windows dotfiles for the win
 Open the Terminal and execute the command
 
 ```bash
-ruby -e "require 'open-uri'; eval open('https://raw.github.com/jeromedecoster/dotfiles/master/bin/install').read"
+ruby <(curl -fsSL https://raw.github.com/jeromedecoster/dotfiles/master/bin/install)
 ```
 
 ### Windows
