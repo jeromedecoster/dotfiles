@@ -3,6 +3,7 @@ require 'pathname'
 require 'fileutils'
 require 'open3'
 
+# test
 # puts RUBY_PLATFORM
 # x86_64-darwin10.8.0
 # i386-mingw32
