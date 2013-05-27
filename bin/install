@@ -7,6 +7,7 @@ require 'open3'
 # x86_64-darwin10.8.0
 # i386-mingw32
 
+# yo yo
 # ENV.each_pair{ |k,v| puts k+'='+v}
 # ENV['PATH'].split(';').each{ |k| puts k}
 # __END__
