@@ -12,6 +12,7 @@ alias gb="git branch"
 alias gbd="git branch -D"
 alias gc="git commit -m"
 alias gca="git commit -a -m"
+alias gcg="git config --global --list"
 # switch on a branch
 alias gco="git checkout"
 # create a branch and switch on it

@@ -14,7 +14,7 @@ ruby <(curl -fsSL https://raw.github.com/jeromedecoster/dotfiles/master/bin/inst
 
 ### Windows
 
-Minimum requirement, Ruby must be <a target="_new" href="http://rubyinstaller.org">installed</a>
+Ruby must be <a target="_new" href="http://rubyinstaller.org">installed</a>
 
 Open the Powershell console and execute in 3 steps, line by line, the command
 

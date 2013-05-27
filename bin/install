@@ -7,6 +7,13 @@ require 'open3'
 # x86_64-darwin10.8.0
 # i386-mingw32
 
+# o, e, s = Open3.popen3 "git pull"
+# ruby -e "require 'open3'; o, e, s = Open3.popen3 'git pull'; puts s.read"
+# puts "o:#{o.read}"
+# puts "e:#{e.read}"
+# puts "s:#{s.read}"
+
+# __END__
 # yo yo
 # ENV.each_pair{ |k,v| puts k+'='+v}
 # ENV['PATH'].split(';').each{ |k| puts k}
@@ -121,7 +128,7 @@ if OS == 'win'
     end
 
     # Check Chrome and/or Firefox
-    print "Check browsers..."
+    print 'Check browsers...'
     unless browser
         done false
         exit_msg 'Aborted: Chrome or Firefox must be installed'
@@ -129,7 +136,7 @@ if OS == 'win'
     done
 
     # Check msysGit
-    print "Check msysGit..."
+    print 'Check msysGit...'
     msysgit = path "#{PROG}/Git/bin/git.exe"
     unless msysgit.exist?
         done false
@@ -140,7 +147,7 @@ if OS == 'win'
     done
 
     # Check Git
-    print "Check git..."
+    print 'Check git...'
     git = begin
             `git`
             true
@@ -189,7 +196,7 @@ else
     end
 
     # Check Chrome and/or Firefox
-    print "Check browsers..."
+    print 'Check browsers...'
     unless browser
         done false
         exit_msg 'Aborted: Chrome or Firefox must be installed'
@@ -197,7 +204,7 @@ else
     done
 
     # Check Git
-    print "Check git..."
+    print 'Check git...'
     git = `git 2>/dev/null`.strip.size > 0
     unless git
         done false
@@ -207,6 +214,16 @@ else
     end
     done
 end
+
+# Check ruby
+print 'Check ruby...'
+unless RUBY_VERSION >= '1.9.3'
+    done false
+    sleep 1
+    browser OS == 'osx' ? 'https://rvm.io/' : 'http://rubyinstaller.org/'
+    exit_msg 'Aborted: Ruby 1.9.3 minimum'
+end
+done
 
 
 dotfiles = path '~/.dotfiles'
@@ -242,10 +259,12 @@ BACKUP = FileUtils.mkdir_p(path("~/.dotfiles-backup/#{date}")).first
 
 copy "~/.dotfiles/#{OS}/user", '~'
 
-# Create symbolic link of Sublime Text
-subl = path '/Applications/Sublime Text 2.app/Contents/SharedSupport/bin/subl'
-if subl.exist?
-    link = path '/usr/local/bin/subl'
-    FileUtils.rm_f link if link.exist?
-    FileUtils.ln_s subl, link
+if OS == 'osx'
+    # Create symbolic link of Sublime Text
+    subl = path '/Applications/Sublime Text 2.app/Contents/SharedSupport/bin/subl'
+    if subl.exist?
+        link = path '/usr/local/bin/subl'
+        FileUtils.rm_f link if link.exist?
+        FileUtils.ln_s subl, link
+    end
 end
