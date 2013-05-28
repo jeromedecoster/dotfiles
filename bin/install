@@ -239,9 +239,9 @@ if dotfiles.exist? and dotfiles.directory?
 else
     # read-only
     print "Clone repository..."
-    # o, e, s = Open3.capture3 "git clone --quiet https://github.com/jeromedecoster/dotfiles.git #{dotfiles.to_s}"
+    o, e, s = Open3.capture3 "git clone --quiet https://github.com/jeromedecoster/dotfiles.git #{dotfiles.to_s}"
     # o, e, s = Open3.capture3 "git clone --quiet git://github.com/jeromedecoster/dotfiles.git #{dotfiles.to_s}"
-    o, e, s = Open3.capture3 "git clone --quiet git@github.com:jeromedecoster/dotfiles.git #{dotfiles.to_s}"
+    # o, e, s = Open3.capture3 "git clone --quiet git@github.com:jeromedecoster/dotfiles.git #{dotfiles.to_s}" # pass
     # puts "o:#{o}"
     # puts "e:#{e}"
     # puts "s:#{s.success?}"
