@@ -1,0 +1,82 @@
+#!bash
+# disable error sound
+# example: when the caret is at the beginning of the line,
+# press <left-arrow> key does an annoying sound
+set bell-style none
+
+# <tab> completion makes more propositions
+# example: in the ~ folder, 'cd d<tab>' will also list the
+# files that begin with an uppercase d, like Desktop
+set completion-ignore-case on
+
+# <tab> completion shows directly all propositions
+# example: in the ~ folder, 'cd do<tab>' will directly list
+# the files 'Documents' and 'Downloads'. With the default
+# behavior, you need to press <tab> two times
+set show-all-if-ambiguous on
+
+# <tab> completion will ignore hidden files (files whose
+# name starts with a dot)
+# example: in the ~ folder, the default behavior when 'cd <tab>'
+# will list all files (hidden files like '.inputrc' and visible
+# files like 'Desktop'). Setting off will only list visible files
+set match-hidden-files off
+
+# <tab> completion will add a trailing slash to the directories
+# example: in the ~ folder, 'cd <tab>' will show 'Desktop/'
+# instead of 'Desktop'
+set mark-directories on
+
+# repeatedly press <shift-tab> will cycle in the prosositions
+# and will directly write it on the command line
+# example: in the ~ folder, 'cd D<shift-tab>' will change the command
+# to 'cd Desktop/'. Press <shift-tab> again will change the line
+# to 'cd Documents/'
+"\e[Z": menu-complete
+
+# <ctrl-left-arrow> will delete the current or previous word
+# from current position of caret. The default behavior write an
+# annoying 'D'
+"\e[5D": backward-kill-word
+
+# <ctrl-right-arrow> will delete the current or next word
+# from current position of caret. The default behavior write an
+# annoying 'C'
+"\e[5C": kill-word
+
+# <alt-up-arrow> will move the caret position to the beginning of
+# the line. The default behavior write an annoying '[A'
+"\e\e[A": beginning-of-line
+
+# <alt-down-arrow> will move the caret position to the end of
+# the line. The default behavior write an annoying '[B'
+"\e\e[B": end-of-line
+
+# <alt-left-arrow> will move the caret position to the beginning
+# of the current or previous word. The default behavior write
+# an annoying '[D'
+"\e\e[D": backward-word
+
+# <alt-right-arrow> will move the caret position to the end
+# of the current or next word. The default behavior write
+# an annoying '[C'
+"\e\e[C": forward-word
+
+# <alt-L> will write the '|' pipe char. The default behavior
+# do nothing.
+"\el": "|"
+
+# <alt-N> will write the '~' tilde char. The default behavior
+# write annoying '^[n'
+"\en": "~"
+
+# <alt-shift-(> will write '[]' and move the caret after the opening
+# bracket. The default behavior write strange things
+"\e5": "[]\C-b"
+
+# <alt-(> will write '{}' and move the caret after the opening
+# bracket. The default behavior do nothing
+"\e(": "{}\C-b"
+
+# <alt-shift-/> will write '\'. The default behavior do nothing
+"\e/": "\\"
