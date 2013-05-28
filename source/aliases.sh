@@ -5,8 +5,8 @@ alias s="subl"
 
 # git aliases...
 alias ga="git add"
-# add all files
-alias gaa="git add ."
+# add all files (also when not in the repository root) 
+alias gaa="git rev-parse --show-toplevel | xargs git add"
 alias gb="git branch"
 # delete a branch
 alias gbd="git branch -D"
