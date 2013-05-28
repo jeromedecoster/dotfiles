@@ -1,0 +1,137 @@
+#!/bin/bash
+[[ ! "$OSTYPE" =~ ^darwin ]] && echo "Aborted: this install script is only for OS X" && exit 1
+
+function ok() { echo -e "\033[0;32mKO\033[0m"; }
+function notok() { echo -e "\033[0;31mKO\033[0m"; }
+function browser() {
+    local url=$1
+    [[ ${url:0:4} != 'http' ]] && url="http://$url"
+
+    # if Chrome, browse with it
+    if [[ -d '/Applications/Google Chrome.app' ]]; then
+        arch -i386 osascript <<EOF
+            set launched to true
+            if application "Google Chrome" is not running then
+                set launched to false
+                tell application "Google Chrome" to activate
+                delay 0.5
+            end if
+            on curtab(pUrl)
+                tell application "Google Chrome" to set URL of active tab of front window to pUrl
+            end curtab
+            tell application "Google Chrome"
+                if launched is false then
+                    curtab("$url") of me
+                else
+                    if (count of properties of windows) is 0 then
+                        make new window
+                        curtab("$url") of me
+                    else
+                        if URL of active tab of front window is "chrome://newtab/" then
+                            curtab("$url") of me
+                        else
+                            tell front window to make new tab
+                            curtab("$url") of me
+                        end if
+                    end if
+                end if
+            end tell
+EOF
+    # if Firefox, browse with it
+    elif [[ -d '/Applications/Firefox.app' ]]; then
+        open -a Firefox.app $url
+    # otherwise fallback to Safari
+    elif [[ -d '/Applications/Safari.app' ]]; then
+        open -a Safari.app $url
+    fi
+}
+
+# Check Git
+echo -n 'Check git...'
+if [[ ! "$(type -p git)" ]]; then
+    notok
+    echo 'Aborted: Git must be installed'
+    sleep 1
+    browser 'http://git-scm.com/download/mac'
+    exit 1
+fi
+ok
+
+# Check ruby
+echo -n 'Check ruby...'
+if [[ ! "$(type -p ruby)" || $(ruby -e "puts RUBY_VERSION >= '1.9.3'") == 'false' ]]; then
+    notok
+    echo 'Aborted: Ruby must be installed. Version 1.9.3 minimum'
+    sleep 1
+    browser 'https://rvm.io/'
+    exit 1
+fi
+ok
+
+# Update existing ~/.dotfiles repositoy or clone it first the first time
+if [[ -e ~/.dotfiles ]]; then
+    cur=$(pwd)
+    echo -n 'Update repository...'
+    cd ~/.dotfiles
+    # capture error
+    error=$(git pull --quiet 2>&1)
+    exit_code=$?
+    cd "$cur"
+    if [[ $exit_code -ne 0 ]]; then
+        notok
+        echo $error
+        echo 'Aborted: Error with git pull'
+        exit 1
+    fi
+    ok
+else
+    echo -n 'Clone repository...'
+    # capture error
+    error=$(git clone --quiet https://github.com/jeromedecoster/dotfiles.git ~/.dotfiles 2>&1)
+    if [[ $? -ne 0 ]]; then
+        notok
+        echo $error
+        echo 'Aborted: Error with git clone'
+        exit 1
+    fi
+    ok
+fi
+
+# create backup folder
+backup=~/.dotfiles-backup/$(date +%Y-%m-%d--%H-%M-%S)
+mkdir -p "$backup"
+# backup=~/.dotfiles-backup
+
+function copy() {
+    [[ $# -ne 2 ]] && echo "Runtime error: copy require 2 arguments" && exit 1
+    [[ ! -e "$1" || ! -e "$2" ]] && echo "Runtime error: copy require 2 valid paths" && exit 1
+    local name
+    for f in $1/{.*,*}; do
+        name=$(basename "$f")
+        # not readable, skip
+        [[ ! -r "$f" ]] && continue
+        # special files, skip
+        [[ "$name" == '.' || "$name" == '..' || "$name" == '.DS_Store' ]] && continue
+        if [[ -e $2/$name ]]; then
+            mv "$2/$name" "$backup"
+            cp -rp "$f" "$2"
+            echo -e "Backup then overwrite \033[0;33m$2/$name\033[0m"
+        else
+            cp -rp "$f" "$2"
+            echo -e "Add \033[0;33m$2/$name\033[0m"
+        fi
+    done
+}
+
+function link() {
+    [[ $# -ne 2 ]] && echo "Runtime error: link require 2 arguments" && exit 1
+    [[ ! -e "$1" || ! -e "$2" ]] && echo "Runtime error: link require 2 valid paths" && exit 1
+    if [[ -e "$1" ]]; then
+        [[ -e "$2" ]] && mv "$2" "$backup" && echo -e "Backup \033[0;33m$2\033[0m"
+        ln -s "$1" "$2" 2>/dev/null
+        echo -e "Create link \033[0;33m$2\033[0m"
+    fi
+}
+
+copy ~/.dotfiles/osx/user ~
+link '/Applications/Sublime Text 2.app/Contents/SharedSupport/bin/subl' ~/.dotfiles/bin/subl
