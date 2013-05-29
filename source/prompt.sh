@@ -117,7 +117,7 @@ function prompt_path() {
     local tmp lng
     if [[ $PWD == $HOME ]]; then
         echo "[~]" && return
-    elif [[ $HOME ==  ${PWD:0:${#HOME}} ]]; then
+    elif [[ $HOME == ${PWD:0:${#HOME}} ]]; then
         tmp="~${PWD:${#HOME}}"
     else
         tmp=$PWD

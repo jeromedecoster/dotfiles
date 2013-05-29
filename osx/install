@@ -1,12 +1,41 @@
 #!/bin/bash
 [[ ! "$OSTYPE" =~ ^darwin ]] && echo "Aborted: this install script is only for OS X" && exit 1
 
-function blue()  { [[ $# -eq 1 ]] && echo -e "\033[0;34m$1\033[0m"; }
+# write colored putput
 function green() { [[ $# -eq 1 ]] && echo -e "\033[0;32m$1\033[0m"; }
 function red()   { [[ $# -eq 1 ]] && echo -e "\033[0;31m$1\033[0m"; }
 
+# write in blue as a special behavior, will try to reduce path
+# from /Users/username/.dotfiles to ~/.dotfiles
+function blue()  {
+    if [[ $# -eq 1 ]]; then
+        # not a file or folder, simple output
+        if [[ ! -e $1 ]]; then
+            echo -e "\033[0;34m$1\033[0m"
+        else
+            # if the path is in the user folder ($HOME), reduce the output
+            # message using the shortcut '~'
+            # from /Users/username/.dotfiles to ~/.dotfiles
+            if [[ $HOME == ${1:0:${#HOME}} ]]; then
+                echo -e "\033[0;34m~${1:${#HOME}}\033[0m"
+            # otherwise, simple output
+            else
+                echo -e "\033[0;34m$1\033[0m"
+            fi
+        fi
+    fi
+}
+
 function ok()    { echo -e "$(green KO)"; }
 function notok() { echo -e "$(red KO)"; }
+
+# Check if a folder is empty
+# if yes, return 1, otherwise return 0
+function empty() {
+    [[ $# -ne 1 ]] && echo "Runtime error: empty require 1 argument" && exit 1
+    [[ ! -d $1 ]]  && echo "Runtime error: empty require a folder path" && exit 1
+    [[ $(find $1 -depth 1 2>/dev/null | grep . -c) -eq 0 ]] && echo 1 || echo 0
+}
 
 function browser() {
     local url=$1
@@ -141,6 +170,9 @@ function link() {
 copy ~/.dotfiles/osx/user ~
 # link '/Applications/Sublime Text 2.app/Contents/SharedSupport/bin/subl' ~/.dotfiles/bin/subl
 
-if [[ $(find $backup -depth 1 | grep . -c) -eq 0 ]]; then
-    rm -d $backup && echo -e "Deleting the backup folder which is finally empty $(blue $backup)"
+if [[ $(empty $backup) -eq 1 ]]; then
+    rm -d $backup && echo -e "Delete empty folder $(blue $backup)"
+fi
+if [[ $(empty ~/.dotfiles-backup) -eq 1 ]]; then
+    rm -d ~/.dotfiles-backup && echo -e "Delete empty folder $(blue ~/.dotfiles-backup)"
 fi
