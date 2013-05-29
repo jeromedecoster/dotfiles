@@ -9,7 +9,7 @@ My OS X / Windows dotfiles for the win
 Open the Terminal and execute the command
 
 ```bash
-ruby <(curl -fsSL https://raw.github.com/jeromedecoster/dotfiles/master/bin/install)
+bash -c "$(curl -fsSL https://raw.github.com/jeromedecoster/dotfiles/master/osx/install)"
 ```
 
 ### Windows

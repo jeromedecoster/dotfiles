@@ -1,5 +1,5 @@
-# add ~/.dotfiles/bin into the PATH
-PATH=~/.dotfiles/bin:$PATH
+# add ~/.dotfiles/osx/bin into the PATH
+PATH=~/.dotfiles/osx/bin:$PATH
 export PATH
 
 # source some files in ~/.dotfiles/source/

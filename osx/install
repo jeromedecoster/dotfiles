@@ -1,8 +1,13 @@
 #!/bin/bash
 [[ ! "$OSTYPE" =~ ^darwin ]] && echo "Aborted: this install script is only for OS X" && exit 1
 
-function ok() { echo -e "\033[0;32mKO\033[0m"; }
-function notok() { echo -e "\033[0;31mKO\033[0m"; }
+function blue()  { [[ $# -eq 1 ]] && echo -e "\033[0;34m$1\033[0m"; }
+function green() { [[ $# -eq 1 ]] && echo -e "\033[0;32m$1\033[0m"; }
+function red()   { [[ $# -eq 1 ]] && echo -e "\033[0;31m$1\033[0m"; }
+
+function ok()    { echo -e "$(green KO)"; }
+function notok() { echo -e "$(red KO)"; }
+
 function browser() {
     local url=$1
     [[ ${url:0:4} != 'http' ]] && url="http://$url"
@@ -115,10 +120,10 @@ function copy() {
         if [[ -e $2/$name ]]; then
             mv "$2/$name" "$backup"
             cp -rp "$f" "$2"
-            echo -e "Backup then overwrite \033[0;33m$2/$name\033[0m"
+            echo -e "Backup then overwrite $(blue $2/$name)"
         else
             cp -rp "$f" "$2"
-            echo -e "Add \033[0;33m$2/$name\033[0m"
+            echo -e "Add $(blue $2/$name)"
         fi
     done
 }
@@ -127,11 +132,15 @@ function link() {
     [[ $# -ne 2 ]] && echo "Runtime error: link require 2 arguments" && exit 1
     [[ ! -e "$1" || ! -e "$2" ]] && echo "Runtime error: link require 2 valid paths" && exit 1
     if [[ -e "$1" ]]; then
-        [[ -e "$2" ]] && mv "$2" "$backup" && echo -e "Backup \033[0;33m$2\033[0m"
+        [[ -e "$2" ]] && mv "$2" "$backup" && echo -e "Backup $(blue $2)"
         ln -s "$1" "$2" 2>/dev/null
-        echo -e "Create link \033[0;33m$2\033[0m"
+        echo -e "Create link $(blue $2)"
     fi
 }
 
 copy ~/.dotfiles/osx/user ~
-link '/Applications/Sublime Text 2.app/Contents/SharedSupport/bin/subl' ~/.dotfiles/bin/subl
+# link '/Applications/Sublime Text 2.app/Contents/SharedSupport/bin/subl' ~/.dotfiles/bin/subl
+
+if [[ $(find $backup -depth 1 | grep . -c) -eq 0 ]]; then
+    rm -d $backup && echo -e "Deleting the backup folder which is finally empty $(blue $backup)"
+fi
