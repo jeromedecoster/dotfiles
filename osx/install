@@ -9,8 +9,7 @@ function red()   { [[ $# -eq 1 ]] && echo -e "\033[0;31m$1\033[0m"; }
 # from /Users/username/.dotfiles to ~/.dotfiles
 function blue()  {
     if [[ $# -eq 1 ]]; then
-        # not a file or folder, simple output
-        if [[ ! -e $1 ]]; then
+        if [[ ! -e "$1" ]]; then
             echo -e "\033[0;34m$1\033[0m"
         else
             # if the path is in the user folder ($HOME), reduce the output
@@ -29,7 +28,7 @@ function blue()  {
 function ok()    { echo -e "$(green KO)"; }
 function notok() { echo -e "$(red KO)"; }
 
-# Check if a folder is empty
+# check if a folder is empty
 # if yes, return 1, otherwise return 0
 function empty() {
     [[ $# -ne 1 ]] && echo "Runtime error: empty require 1 argument" && exit 1
@@ -80,7 +79,7 @@ EOF
     fi
 }
 
-# Check Git
+# check Git
 echo -n 'Check git...'
 if [[ ! "$(type -p git)" ]]; then
     notok
@@ -91,7 +90,7 @@ if [[ ! "$(type -p git)" ]]; then
 fi
 ok
 
-# Check ruby
+# check Ruby
 echo -n 'Check ruby...'
 if [[ ! "$(type -p ruby)" || $(ruby -e "puts RUBY_VERSION >= '1.9.3'") == 'false' ]]; then
     notok
@@ -102,7 +101,7 @@ if [[ ! "$(type -p ruby)" || $(ruby -e "puts RUBY_VERSION >= '1.9.3'") == 'false
 fi
 ok
 
-# Update existing ~/.dotfiles repositoy or clone it first the first time
+# update existing ~/.dotfiles repositoy or clone it first the first time
 if [[ -e ~/.dotfiles ]]; then
     cur=$(pwd)
     echo -n 'Update repository...'
@@ -157,22 +156,23 @@ function copy() {
     done
 }
 
-function link() {
-    [[ $# -ne 2 ]] && echo "Runtime error: link require 2 arguments" && exit 1
-    [[ ! -e "$1" || ! -e "$2" ]] && echo "Runtime error: link require 2 valid paths" && exit 1
-    if [[ -e "$1" ]]; then
-        [[ -e "$2" ]] && mv "$2" "$backup" && echo -e "Backup $(blue $2)"
-        ln -s "$1" "$2" 2>/dev/null
-        echo -e "Create link $(blue $2)"
-    fi
-}
-
 copy ~/.dotfiles/osx/user ~
-# link '/Applications/Sublime Text 2.app/Contents/SharedSupport/bin/subl' ~/.dotfiles/bin/subl
 
+# removes some folders if stayed empty
 if [[ $(empty $backup) -eq 1 ]]; then
-    rm -d $backup && echo -e "Delete empty folder $(blue $backup)"
+    echo -e "Delete empty folder $(blue "$backup")" && rm -d $backup
 fi
 if [[ $(empty ~/.dotfiles-backup) -eq 1 ]]; then
-    rm -d ~/.dotfiles-backup && echo -e "Delete empty folder $(blue ~/.dotfiles-backup)"
+    echo -e "Delete empty folder $(blue "~/.dotfiles-backup")" && rm -d ~/.dotfiles-backup
 fi
+
+# function link() {
+#     [[ $# -ne 2 ]] && echo "Runtime error: link require 2 arguments" && exit 1
+#     [[ ! -e "$1" || ! -e "$2" ]] && echo "Runtime error: link require 2 valid paths" && exit 1
+#     if [[ -e "$1" ]]; then
+#         [[ -e "$2" ]] && echo -e "Backup $(blue $2)" && mv "$2" "$backup"
+#         ln -s "$1" "$2" 2>/dev/null
+#         echo -e "Create link $(blue $2)"
+#     fi
+# }
+# link '/Applications/Sublime Text 2.app/Contents/SharedSupport/bin/subl' ~/.dotfiles/bin/subl
