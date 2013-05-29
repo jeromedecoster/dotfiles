@@ -4,15 +4,15 @@
 # example, create 2 files in path/to and in the pwd: t path/to/file1 file2
 function t() {
     if [[ $# -gt 0 ]]; then
-        for arg in $@; do
+        for arg in "$@"; do
             fol=$(
-                echo $arg | awk 'BEGIN {FS="/"} \
+                echo "$arg" | awk 'BEGIN {FS="/"} \
                     {a="";                      \
                     for(i=1;i<NF;i++) a=a"/"$i; \
                     print substr(a,2)}'
                 )
-            [[ -n $fol ]] && mkdir -p $fol
-            touch $arg
+            [[ -n "$fol" ]] && mkdir -p "$fol"
+            touch "$arg"
             unset arg
         done
     else
@@ -40,20 +40,20 @@ function tx() {
             bang="#!/usr/bin/env ruby"
             shift
         fi
-        for arg in $@; do
+        for arg in "$@"; do
             fol=$(
-                    echo $arg | awk 'BEGIN {FS="/"} \
+                    echo "$arg" | awk 'BEGIN {FS="/"} \
                     {a="";                      \
                     for(i=1;i<NF;i++) a=a"/"$i; \
                     print substr(a,2)}'
                 )
-            [[ -n $fol ]] && mkdir -p $fol
-            if [[ -r $arg ]]; then
-                touch $arg
+            [[ -n "$fol" ]] && mkdir -p "$fol"
+            if [[ -r "$arg" ]]; then
+                touch "$arg"
             else
-                echo -e "$bang" > $arg
+                echo -e "$bang" > "$arg"
             fi
-            chmod a+x $arg
+            chmod a+x "$arg"
         done
         unset arg
     else
@@ -92,5 +92,29 @@ function prompt() {
         PROMPT_COMMAND="prompt_advanced"
     else
         PROMPT_COMMAND="prompt_basic"
+    fi
+}
+
+# return the local repository root of a svn repo
+# return nothing if not inside a svn directory
+# example, inside the folder /Volumes/Documents/work/projectname/trunk/home/css/
+# execute 'svnroot' return: /Volumes/Documents/work/projectname/trunk
+# ATTENTION: if Ruby is not installed, the function fails silently
+function svnroot() {
+    [[ ! "$(type -P ruby)" ]] && return
+    local info="$(svn info . 2> /dev/null)"
+    if [[ "$info" ]]; then
+        local uuid=$(echo "$info" | awk '/^Repository UUID:/ { print $3 }')
+        local folder=""
+        while true; do
+            info=$(svn info "$folder../" 2> /dev/null)
+            if [[ "$info" && $(echo "$info" | awk '/^Repository UUID:/ { print $3 }') == "$uuid" ]]; then
+                folder="$folder../"
+                continue
+            else
+                echo $(ruby -e "print File.expand_path '$folder'")
+                break
+            fi
+        done
     fi
 }

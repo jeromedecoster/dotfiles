@@ -60,9 +60,13 @@ function prompt_git() {
     status="$(git status 2>/dev/null)"
     # if pwd is inside a Git repo, the exit code ($?) will be != than 0
     [[ $? != 0 ]] && return;
-    # if initial commit, output = '(init)'
-    output="$(echo "$status" | awk '/# Initial commit/ {print "(init)"}')"
-    # if output is empty, output = <branch-name>
+    # if initial commit, output = a blue 'init'
+    local BLU="\033[0;34m"
+    local RES="\033[0m"
+    if [[ $(echo "$status" | grep -E "^# Initial commit" -c) -eq 1 ]]; then
+        output="${BLU}init${RES}"
+    fi
+    # if output is still empty, output = a black <branch-name>
     [[ "$output" ]] || output="$(echo "$status" | awk '/# On branch/ {print $4}')"
     
     flags="$(
@@ -98,7 +102,6 @@ function prompt_git() {
     local RED="\033[0;31m"
     local GRE="\033[0;32m"
     local YEL="\033[0;33m"
-    local RES="\033[0m"
     warn=""
     [[ $com -eq 1 ]] && warn="${GRE}com${RES}"
     [[ $mod -eq 1 ]] && warn="${warn}-${RED}mod${RES}"
