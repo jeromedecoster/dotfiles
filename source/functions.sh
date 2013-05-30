@@ -99,22 +99,75 @@ function prompt() {
 # return nothing if not inside a svn directory
 # example, inside the folder /Volumes/Documents/work/projectname/trunk/home/css/
 # execute 'svnroot' return: /Volumes/Documents/work/projectname/trunk
-# ATTENTION: if Ruby is not installed, the function fails silently
+# svnroot accept also 1 argument (a path to a directory or a file)
+# execute 'svnroot /Volumes/Documents/work/projectname/trunk/home/css/style.css'
+# or execute 'svnroot /Volumes/Documents/work/projectname/trunk/home/css'
+# both will return: /Volumes/Documents/work/projectname/trunk
+# note: Ruby or Python must be installed
 function svnroot() {
-    [[ ! "$(type -P ruby)" ]] && return
-    local info="$(svn info . 2> /dev/null)"
-    if [[ "$info" ]]; then
-        local uuid=$(echo "$info" | awk '/^Repository UUID:/ { print $3 }')
-        local folder=""
-        while true; do
-            info=$(svn info "$folder../" 2> /dev/null)
-            if [[ "$info" && $(echo "$info" | awk '/^Repository UUID:/ { print $3 }') == "$uuid" ]]; then
-                folder="$folder../"
-                continue
+    local ruby=$(type -P ruby)
+    local python=$(type -P python)
+    if [[ "$ruby" || "$python" ]]; then
+        if [[ $# -le 1 ]]; then
+            local folder
+            # without argument, folder is the pwd with a trailing '/'
+            if [[ $# -eq 0 ]]; then
+                folder="$(pwd)/"
             else
-                echo $(ruby -e "print File.expand_path '$folder'")
-                break
+                # if the argument is a directory, just add a trailing '/'
+                # note: 2 trailing slash doesn't break things
+                if [[ -d "$1" ]]; then
+                    folder="$1/"
+                # if the argument is a file, get the parent directory and
+                # add a trailing '/'
+                elif [[ -f "$1" ]]; then
+                    folder="$(dirname "$1")/"
+                fi
             fi
-        done
+            if [[ "$folder" ]]; then
+                local info="$(svn info "$folder" 2> /dev/null)"
+                if [[ "$info" ]]; then
+                    local uuid=$(echo "$info" | awk '/^Repository UUID:/ { print $3 }')
+                    # local folder=""
+                    while true; do
+                        info=$(svn info "$folder../" 2> /dev/null)
+                        if [[ "$info" && $(echo "$info" \
+                                           | awk '/^Repository UUID:/ { print $3 }') == "$uuid" ]]; then
+                            folder="$folder../"
+                            continue
+                        else
+                            if [[ "$ruby" ]]; then
+                                echo $(ruby -e "print File.expand_path '$folder'")
+                            else
+                                echo $(python -c "import os;print(os.path.abspath('$folder'))")
+                            fi
+                            break
+                        fi
+                    done
+                fi
+            # the variable folder is not defined if the argument $1
+            # is not a real directory or a real file
+            # write the error message in the stderr and
+            # return the exitcode 1 without quit the terminal
+            # echo $? after the error message will write 1
+            else
+                $(echo -e "error: the path '$1' does not exist" >&2; exit 1)
+            fi
+        else
+            # write the usage message in the stderr and
+            # return the exitcode 1 without quit the terminal
+            # echo $? after the usage message will write 1
+            local msg=$(cat <<EOF
+usage: svnroot
+       svnroot path/to/folder
+       svnroot path/to/file
+EOF)
+        $(echo -e "$msg" >&2; exit 1)
+        fi
+    else
+        # write the error message in the stderr and
+        # return the exitcode 1 without quit the terminal
+        # echo $? after the error message will write 1
+        $(echo -e "error: Ruby or Python is required" >&2; exit 1)
     fi
 }
