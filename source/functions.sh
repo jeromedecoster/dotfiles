@@ -197,16 +197,18 @@ function crap() {
     # if no argument or error is still undefined (means 1 argument
     # with a real directory), define the variable folder
     if [[ $# -eq 0 || ! "$error" ]]; then
-        
+        # if git directory, locate the root repo directory
         if [[ "$(git status 2>/dev/null)" ]]; then
             folder=$(git rev-parse --show-toplevel)
         else
+            # if svn directory, try to locate the root repo directory
             if [[ "$(svn info . 2> /dev/null)" ]]; then
                 if [[ "$(type -P ruby)" || "$(type -P python)" ]]; then
                     folder=$(svnroot)
                 else
                     folder=$(pwd)
                 fi
+            # otherwise take the pwd
             else
                 folder=$(pwd)
             fi
@@ -226,9 +228,9 @@ function crap() {
         local lines=($(echo "$files"))
         IFS=$old_IFS
         for i in "${lines[@]}"; do
-            echo -e "Delete \033[0;34m$i\033[0m"
-             # && rm -f "$i"
+            echo -e "Delete \033[0;34m$i\033[0m" && rm -f "$i"
         done
+        unset i
     # the variable folder is undefined, show the usage message
     else
         # write the usage message in the stderr and
