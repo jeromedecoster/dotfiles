@@ -162,12 +162,82 @@ usage: svnroot
        svnroot path/to/folder
        svnroot path/to/file
 EOF)
-        $(echo -e "$msg" >&2; exit 1)
+            $(echo -e "$msg" >&2; exit 1)
         fi
     else
         # write the error message in the stderr and
         # return the exitcode 1 without quit the terminal
         # echo $? after the error message will write 1
         $(echo -e "error: Ruby or Python is required" >&2; exit 1)
+    fi
+}
+
+# remove all crap files in a directory and sub-directories
+# files: .DS_Store .Spotlight-V100 desktop.ini Thumbs.db
+# if the directory is a sub-directory of a git or svn repo
+# will try to remove all crap files from the local root of
+# this repository
+# example: execute 'crap' remove all files in the pwd
+# example: execute 'crap path/to/folder' remove all files in this folder
+function crap() {
+    local folder cur error
+    cur=$(pwd)
+
+    if [[ $# -eq 1 ]]; then
+        # if the first argument is a directory, cd into it
+        if [[ -d "$1" ]]; then
+            cd "$1"
+        # otherwise define the variable error, everything
+        # will be stopped and usage message will be shown
+        else
+            error=1
+        fi
+    fi
+
+    # if no argument or error is still undefined (means 1 argument
+    # with a real directory), define the variable folder
+    if [[ $# -eq 0 || ! "$error" ]]; then
+        
+        if [[ "$(git status 2>/dev/null)" ]]; then
+            folder=$(git rev-parse --show-toplevel)
+        else
+            if [[ "$(svn info . 2> /dev/null)" ]]; then
+                if [[ "$(type -P ruby)" || "$(type -P python)" ]]; then
+                    folder=$(svnroot)
+                else
+                    folder=$(pwd)
+                fi
+            else
+                folder=$(pwd)
+            fi
+        fi
+    fi
+
+    cd "$cur"
+
+    # if the variable folder is defined, find crap files
+    if [[ "$folder" ]]; then
+        local files=$(find "$folder" -type f -name '.DS_Store'   -o -name '.Spotlight-V100' \
+                                  -o -name 'desktop.ini' -o -name 'Thumbs.db' 2>/dev/null)
+
+        # transform string variable $files in array variable $lines
+        local old_IFS=$IFS
+        IFS=$'\n'
+        local lines=($(echo "$files"))
+        IFS=$old_IFS
+        for i in "${lines[@]}"; do
+            echo -e "Delete \033[0;34m$i\033[0m"
+             # && rm -f "$i"
+        done
+    # the variable folder is undefined, show the usage message
+    else
+        # write the usage message in the stderr and
+        # return the exitcode 1 without quit the terminal
+        # echo $? after the usage message will write 1
+        local msg=$(cat <<EOF
+usage: crap
+       crap path/to/folder
+EOF)
+        $(echo -e "$msg" >&2; exit 1)
     fi
 }
