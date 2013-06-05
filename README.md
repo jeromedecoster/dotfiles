@@ -1,7 +1,9 @@
 Dotfiles
 ========
 
-My OS X / Windows dotfiles FTW!
+My OS X / Windows dotfiles
+
+Mainly inspired by the dotfiles of Ben Alman but everything was rewritten from scratch
 
 ## Installation
 ### OS X

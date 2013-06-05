@@ -9,13 +9,29 @@ EOF)
     echo -e "$msg" >&2 && exit 1
 }
 
+# resolve a path to an absolute path (require Ruby or Python)
+function abspath() {
+    [[ $# -ne 1 ]] && echo "script error: abspath require 1 argument" >&2 && exit 1
+    if [[ $(type -P ruby) ]]; then
+        echo $(ruby -e "print File.expand_path '$1'")
+    elif [[ $(type -P python) ]]; then
+        echo $(python -c "import os;print(os.path.abspath('$1'))")
+    else
+        # write the error message in the stderr
+        # and exit with exitcode 1
+        echo 'error: Ruby or Python is required' >&2 && exit 1
+    fi
+}
+
 # open with the Finder, force column view
+# empty log to prevent the annoying echo 'column view' in the Terminal
 function finder() {
     arch -i386 osascript <<EOF
     tell application "Finder"
         activate
         open ("$1" as POSIX file)
         set current view of front window to column view
+        log ""
     end tell
 EOF
 }
@@ -76,8 +92,17 @@ if [[ $# -gt 0 && $# -lt 3 ]]; then
         uri=$1
     fi
 
+    if [[ ${uri:$((${#uri}-4))} == 'html' || ${uri:$((${#uri}-3))} == 'htm' ]]; then
+        # html file detected, check it's a real local file
+        # if yes, will be opened with 'file:///path/to/file' uri 
+        tmp=$(abspath "$uri")
+        [[ -f "$tmp" ]] && localhtml=1
+    fi
+
     # try to resolve local uri
-    if [[ "$uri" == '.' ]]; then
+    if [[ "$localhtml" ]]; then
+        uri="file://$tmp"
+    elif [[ "$uri" == '.' ]]; then
         uri=$(pwd)
     elif [[ ${uri:0:16} == 'file://localhost' ]]; then
         # resolve 'file://localhost/usr' to '/usr'
@@ -88,24 +113,21 @@ if [[ $# -gt 0 && $# -lt 3 ]]; then
         uri=${uri:7}
     elif [[ ${uri:0:1} == '.' ]]; then
         # if starts with a dot, get the absolute path with Ruby or Python
-        if [[ $(type -P ruby) ]]; then
-            uri=$(ruby -e "print File.expand_path '$uri'")
-        elif [[ $(type -P python) ]]; then
-            uri=$(python -c "import os;print(os.path.abspath('$uri'))")
-        else
-            # write the error message in the stderr
-            # and exit with exitcode 1
-            echo 'error: Ruby or Python is required' >&2 && exit 1
-        fi
+        uri=$(abspath "$uri")
+        # exit if the function return an error
+        [[ $? -ne 0 ]] && exit 1
     fi
     
     # if the uri starts with a '/', it's a local uri, browse with the Finder
-    if [[ ${uri:0:1} == '/' ]]; then
+    # exception for html local files, opened with a browser
+    if [[ ! "$localhtml" && ${uri:0:1} == '/' ]]; then
         [[ -f "$uri" ]] && uri=$(dirname "$uri")
         finder $uri
     else
-        [[ ${uri:0:4} != 'http' ]] && uri="http://$uri"
 
+        # browsers require full url (starting with http://)
+        [[ ! "$localhtml" && ${uri:0:4} != 'http' ]] && uri="http://$uri"
+        
         # open with a browser (if a specific browser is required or if it's installed)
         if [[ ! "$app" && "$chrome" -eq 1 || "$app" == 'chrome' ]]; then
             chrome "$uri"
