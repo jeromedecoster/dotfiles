@@ -1,0 +1,124 @@
+#!/bin/bash
+function usage() {
+    # write the usage message in the stderr
+    # and exit with exitcode 1
+    local msg=$(cat <<EOF
+usage: browse uri
+       browse [-cfs] uri
+EOF)
+    echo -e "$msg" >&2 && exit 1
+}
+
+# open with the Finder, force column view
+function finder() {
+    arch -i386 osascript <<EOF
+    tell application "Finder"
+        activate
+        open ("$1" as POSIX file)
+        set current view of front window to column view
+    end tell
+EOF
+}
+
+# open with Chrome, create a new tab if needed
+# or update the current tab if it's the 'chrome://newtab/' starting view
+function chrome() {
+    arch -i386 osascript <<EOF
+        set launched to true
+        if application "Google Chrome" is not running then
+            set launched to false
+            tell application "Google Chrome" to activate
+            delay 0.5
+        end if
+        on curtab(pUrl)
+            tell application "Google Chrome" to set URL of active tab of front window to pUrl
+        end curtab
+        tell application "Google Chrome"
+            if launched is false then
+                curtab("$1") of me
+            else
+                if (count of properties of windows) is 0 then
+                    make new window
+                    curtab("$1") of me
+                else
+                    if URL of active tab of front window is "chrome://newtab/" then
+                        curtab("$1") of me
+                    else
+                        tell front window to make new tab
+                        curtab("$1") of me
+                    end if
+                end if
+            end if
+        end tell
+EOF
+}
+
+if [[ $# -gt 0 && $# -lt 3 ]]; then
+    [[ -d '/Applications/Google Chrome.app' ]] && chrome=1
+    [[ -d '/Applications/Firefox.app' ]] && firefox=1
+    [[ -d '/Applications/Safari.app' ]] && safari=1
+
+    if [[ $# -eq 2 ]]; then
+        case $1 in
+            '-c' )
+                [[ ! "$chrome" ]] && echo 'error: Chrome not found' && exit 1 || app='chrome'
+            ;;
+            '-f' )
+                [[ ! "$firefox" ]] && echo 'error: Firefox not found' && exit 1 || app='firefox'
+            ;;
+            '-s' )
+                [[ ! "$safari" ]] && echo 'error: Safari not found' && exit 1 || app='safari'
+            ;;
+            * ) usage ;;
+        esac
+        uri=$2
+    else
+        uri=$1
+    fi
+
+    # try to resolve local uri
+    if [[ "$uri" == '.' ]]; then
+        uri=$(pwd)
+    elif [[ ${uri:0:16} == 'file://localhost' ]]; then
+        # resolve 'file://localhost/usr' to '/usr'
+        uri=${uri:16}
+    elif [[ ${uri:0:8} == 'file:///' ]]; then
+        # resolve 'file:///usr' to '/usr'
+        # or 'file:///Volumes/Documents/abc' to '/Volumes/Documents/abc'
+        uri=${uri:7}
+    elif [[ ${uri:0:1} == '.' ]]; then
+        # if starts with a dot, get the absolute path with Ruby or Python
+        if [[ $(type -P ruby) ]]; then
+            uri=$(ruby -e "print File.expand_path '$uri'")
+        elif [[ $(type -P python) ]]; then
+            uri=$(python -c "import os;print(os.path.abspath('$uri'))")
+        else
+            # write the error message in the stderr
+            # and exit with exitcode 1
+            echo 'error: Ruby or Python is required' >&2 && exit 1
+        fi
+    fi
+    
+    # if the uri starts with a '/', it's a local uri, browse with the Finder
+    if [[ ${uri:0:1} == '/' ]]; then
+        [[ -f "$uri" ]] && uri=$(dirname "$uri")
+        finder $uri
+    else
+        [[ ${uri:0:4} != 'http' ]] && uri="http://$uri"
+
+        # open with a browser (if a specific browser is required or if it's installed)
+        if [[ ! "$app" && "$chrome" -eq 1 || "$app" == 'chrome' ]]; then
+            chrome "$uri"
+        elif [[ ! "$app" && "$firefox" -eq 1 || "$app" == 'firefox' ]]; then
+            open -a Firefox.app "$uri"
+        elif [[ "$app" == 'safari' && "$safari" -eq 1 || "$safari" -eq 1 ]]; then
+            open -a Safari.app "$uri"
+        else
+            # write the error message in the stderr
+            # and exit with exitcode 1
+            echo 'error: no browser found' >&2 && exit 1
+        fi
+    fi
+else
+    usage
+fi

@@ -2,6 +2,7 @@ alias ..="cd .."
 alias ...="cd ../.."
 # subl is a symbolic link created during the ~/.dotfiles installation
 alias s="subl"
+alias b="browse"
 
 # git aliases...
 alias ga="git add"

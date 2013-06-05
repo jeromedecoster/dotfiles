@@ -1,7 +1,7 @@
 Dotfiles
 ========
 
-My OS X / Windows dotfiles for the win
+My OS X / Windows dotfiles FTW!
 
 ## Installation
 ### OS X
@@ -9,7 +9,7 @@ My OS X / Windows dotfiles for the win
 Open the Terminal and execute the command
 
 ```bash
-bash -c "$(curl -fsSL https://raw.github.com/jeromedecoster/dotfiles/master/osx/install)" && source ~/.bash_profile
+bash -c "$(curl -fsSL raw.github.com/jeromedecoster/dotfiles/master/osx/install)" && source ~/.bash_profile
 ```
 
 ### Windows
