@@ -3,7 +3,7 @@ Dotfiles
 
 My OS X / Windows dotfiles
 
-Mainly inspired by the dotfiles of Ben Alman but everything was rewritten from scratch
+Mainly inspired by Ben Alman's <a href="https://github.com/cowboy/dotfiles" target="_blank">dotfiles</a> but everything was rewritten from scratch
 
 ## Installation
 ### OS X
