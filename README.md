@@ -8,7 +8,7 @@ Mainly inspired by Ben Alman's <a href="https://github.com/cowboy/dotfiles" targ
 ## Installation
 ### OS X
 
-Open the Terminal and execute the command
+Open the Terminal and execute
 
 ```bash
 bash -c "$(curl -fsSL raw.github.com/jeromedecoster/dotfiles/master/osx/install)" && source ~/.bash_profile
@@ -16,7 +16,7 @@ bash -c "$(curl -fsSL raw.github.com/jeromedecoster/dotfiles/master/osx/install)
 
 ### Windows
 
-Ruby must be <a target="_new" href="http://rubyinstaller.org">installed</a>
+Ruby must be <a href="http://rubyinstaller.org" target="_blank">installed</a>
 
 Open the Powershell console and execute in 3 steps, line by line, the command
 
