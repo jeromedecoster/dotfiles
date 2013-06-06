@@ -1,0 +1,100 @@
+/* reset.css */
+html, body, div, span, applet, object, iframe,
+h1, h2, h3, h4, h5, h6, p, blockquote, pre,
+a, abbr, acronym, address, big, cite, code,
+del, dfn, em, img, ins, kbd, q, s, samp,
+small, strike, strong, sub, sup, tt, var,
+b, u, i, center,
+dl, dt, dd, ol, ul, li,
+fieldset, form, label, legend,
+table, caption, tbody, tfoot, thead, tr, th, td,
+article, aside, canvas, details, embed, 
+figure, figcaption, footer, header, hgroup, 
+menu, nav, output, ruby, section, summary,
+time, mark, audio, video {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    font-size: 100%;
+    font: inherit;
+    vertical-align: baseline;
+}
+article, aside, details, figcaption, figure, 
+footer, header, hgroup, menu, nav, section {
+    display: block;
+}
+body {
+    line-height: 1;
+}
+ol, ul {
+    list-style: none;
+}
+blockquote, q {
+    quotes: none;
+}
+blockquote:before, blockquote:after,
+q:before, q:after {
+    content: '';
+    content: none;
+}
+table {
+    border-collapse: collapse;
+    border-spacing: 0;
+}
+
+/* manh style */
+@font-face {
+    font-family: 'gbold';
+    src: url('gbold.woff') format('woff'),
+         url('gbold.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'gbook';
+    src: url('gbook.woff') format('woff'),
+         url('gbook.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+body {
+    background-color: hsl(50, 10%, 88%);
+    font-family: 'gbold', helvetica, sans-serif;
+}
+#content {
+    margin: 10px;
+    padding: 30px 40px;
+    background-color: hsl(50, 19%, 94%);
+    border: 1px solid hsl(50, 19%, 82%);
+    width: 695px;
+}
+h1 {
+    font-family: 'gbook', helvetica, sans-serif;
+    line-height: 0;
+    margin-top: 35px;
+    margin-bottom: 5px;
+    font-size: 45px;
+    font-weight: normal;
+    color: hsl(314, 56%, 10%);
+}
+h2 {
+    line-height: 0;
+    text-transform:uppercase;
+    letter-spacing:2px;
+    font-weight: normal;
+    color: rgb(101, 98, 90);
+    padding: 52px 0 20px 0;
+}
+pre {
+    font-size: 18px;
+    line-height: 28px;
+    font-weight: normal;
+    color: hsl(44, 6%, 37%);
+}
+b {
+    color: hsl(314, 56%, 17%);
+}
+i {
+    color: hsl(314, 56%, 17%);
+    font-style: italic;
+}
