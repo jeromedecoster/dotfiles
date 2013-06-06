@@ -131,7 +131,7 @@ else
 fi
 
 # create backup folder
-backup=~/.dotfiles-backup/$(date +%Y-%m-%d--%H-%M-%S)
+backup=~/.dotfiles/.backup/$(date +%Y-%m-%d--%H-%M-%S)
 mkdir -p "$backup"
 # backup=~/.dotfiles-backup
 
@@ -162,8 +162,8 @@ copy ~/.dotfiles/osx/user ~
 if [[ $(empty $backup) -eq 1 ]]; then
     echo -e "Delete empty folder $(blue "$backup")" && rm -d $backup
 fi
-if [[ $(empty ~/.dotfiles-backup) -eq 1 ]]; then
-    echo -e "Delete empty folder $(blue "~/.dotfiles-backup")" && rm -d ~/.dotfiles-backup
+if [[ $(empty ~/.dotfiles/.backup) -eq 1 ]]; then
+    echo -e "Delete empty folder $(blue "~/.dotfiles/.backup")" && rm -d ~/.dotfiles/.backup
 fi
 
 # function link() {
