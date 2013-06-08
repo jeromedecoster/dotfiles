@@ -16,12 +16,8 @@ bash -c "$(curl -fsSL raw.github.com/jeromedecoster/dotfiles/master/osx/install)
 
 ### Windows
 
-Ruby must be <a href="http://rubyinstaller.org" target="_blank">installed</a>
-
-Open the Powershell console and execute in 3 steps, line by line, the command
+Open the Windows or Powershell console and execute
 
 ```powershell
-$f="$env:temp\install"; $wc=New-Object System.Net.WebClient
-$wc.DownloadFile("https://raw.github.com/jeromedecoster/dotfiles/master/bin/install",$f)
-ruby $f
+powershell -ExecutionPolicy unrestricted -Command "iex ((new-object net.webclient).DownloadString('https://raw.github.com/jeromedecoster/dotfiles/master/win/install.ps1'))"
 ```
