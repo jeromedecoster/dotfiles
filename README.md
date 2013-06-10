@@ -16,7 +16,7 @@ bash -c "$(curl -fsSL raw.github.com/jeromedecoster/dotfiles/master/osx/install)
 
 ### Windows
 
-Open the Windows or Powershell console and execute
+Open the classic or Powershell console and execute
 
 ```powershell
 powershell -ExecutionPolicy unrestricted -Command "iex ((new-object net.webclient).DownloadString('https://raw.github.com/jeromedecoster/dotfiles/master/win/install.ps1'))"
