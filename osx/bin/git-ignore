@@ -1,0 +1,93 @@
+#!/bin/bash
+
+# if the gitignore file does not exist, create it
+# with some predefined filters
+function initialize_gitignore() {
+    [[ $# -ne 1 ]] && echo "Runtime error: create require 1 argument" && exit 1
+    if [[ ! -f "$1" ]]; then
+        cat > "$1" <<EOF
+.DS_Store
+.Spotlight-V100
+.Trashes
+desktop.ini
+Thumbs.db
+node_modules
+EOF
+    fi
+}
+
+# check if the gitignore file exist and is not currently tracked by the
+# git repository. If yes, prompt to add it
+function prompt_git_add() {
+    [[ $# -ne 1 ]] && echo "Runtime error: add_if require 1 argument" && exit 1
+    if [[ -f "$1" ]]; then
+        git ls-files "$1" --error-unmatch 2>/dev/null 1>/dev/null
+        if [[ $? -ne 0 ]]; then
+            local BLU="\033[0;34m"
+            local RES="\033[0m"
+            while true; do
+                echo -n -e "add $BLU.gitignore$RES to git? [Yn]: "
+                read r
+                r=$(echo "$r" | tr '[A-Z]' '[a-z]')
+                case "$r" in
+                    y|n) break ;;
+                     '') r='y' && break ;;
+                esac
+            done
+
+            [[ "$r" == 'y' ]] && git add "$1"
+        fi
+    fi
+    # prevents to not return an exitcode 1 when the user
+    # reply 'n' to the add to git proposition
+    exit 0
+}
+
+if [[ "$(git status 2>/dev/null)" ]]; then
+    file="$(git rev-parse --show-toplevel)/.gitignore"
+    if [[ $# -eq 0 ]]; then
+        # the gitignore file does not exist, prompt to create it
+        if [[ ! -f "$file" ]]; then
+            BLU="\033[0;34m"
+            RES="\033[0m"
+            while true; do
+                echo -n -e "create $BLU.gitignore$RES file? [Yn]: "
+                read r
+                r=$(echo "$r" | tr '[A-Z]' '[a-z]')
+                case "$r" in
+                    y|n) break ;;
+                     '') r='y' && break ;;
+                esac
+            done
+            
+            # if the reply is 'y', creates the gitignore file
+            # otherwise exit
+            [[ "$r" == 'y' ]] && initialize_gitignore "$file" || exit 0
+        fi
+
+        # show the current gitignore content
+        cat "$file"
+
+        # if gitignore is not currently tracked, prompt to add it
+        prompt_git_add "$file"
+    else
+        # creates the gitignore file (does nothing if the file
+        # already exist)
+        initialize_gitignore "$file"
+        
+        # adds the pattern only if it is not already inside
+        for pat in "${@}"; do
+            if [[ $(grep -c "$pat" "$file") -eq 0 ]]; then
+                echo "$pat" >> "$file"
+            fi
+        done
+
+        # if gitignore is not currently tracked, prompt to add it
+        prompt_git_add "$file"
+    fi
+else
+    # write the error message in the stderr
+    # and exit with exitcode 128 which is the same error code than
+    # returned by 'git pull' inside a non-git repo directory
+    echo "fatal: Not a git repository (or any of the parent directories): .git" >&2 && exit 128
+fi

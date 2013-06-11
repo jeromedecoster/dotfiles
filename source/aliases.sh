@@ -24,3 +24,5 @@ alias gpom="git push -u origin master"
 # back to the last commit (undo local modifications)
 alias grh="git reset --hard"
 alias gs="git status"
+# git extensions
+alias gi="git ignore"
