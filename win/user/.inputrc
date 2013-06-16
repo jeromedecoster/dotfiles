@@ -27,30 +27,31 @@ set match-hidden-files off
 # instead of 'Desktop'
 set mark-directories on
 
-# repeatedly press <shift-tab> will cycle in the prosositions
+# repeatedly press <tab or shift-tab> will cycle in the prosositions
 # and will directly write it on the command line
-# example: in the ~ folder, 'cd D<shift-tab>' will change the command
-# to 'cd Desktop/'. Press <shift-tab> again will change the line
+# example: in the ~ folder, 'cd D<tab or shift-tab>' will change the command
+# to 'cd Desktop/'. Press <tab or shift-tab> again will change the line
 # to 'cd Documents/'
-"\e[Z": menu-complete
+# NOTE: msysGit bash is different than OSX Terminal.
+# The shortcut "\e[Z" doesn't exist and it's replaced by "TAB".
+# There is also no difference between <tab> and <shift+tab> on msysGit
+TAB: menu-complete
 
-# <ctrl-left-arrow> will delete the current or previous word
+# <alt-up-arrow> will delete the current or previous word
 # from current position of caret. The default behavior write an
-# annoying 'D'
-"\e[5D": backward-kill-word
+# annoying '[A'
+# NOTE: msysGit bash is different than OSX Terminal.
+# It's not possible to create a <ctrl-left-arrow> shorcut.
+# So the behavior is replaced here with <alt-up-arrow>
+"\e\e[A": backward-kill-word
 
-# <ctrl-right-arrow> will delete the current or next word
+# <alt-down-arrow> will delete the current or next word
 # from current position of caret. The default behavior write an
-# annoying 'C'
-"\e[5C": kill-word
-
-# <alt-up-arrow> will move the caret position to the beginning of
-# the line. The default behavior write an annoying '[A'
-"\e\e[A": beginning-of-line
-
-# <alt-down-arrow> will move the caret position to the end of
-# the line. The default behavior write an annoying '[B'
-"\e\e[B": end-of-line
+# annoying '[B'
+# NOTE: msysGit bash is different than OSX Terminal.
+# It's not possible to create a <ctrl-right-arrow> shorcut.
+# So the behavior is replaced here with <alt-down-arrow>
+"\e\e[B": kill-word
 
 # <alt-left-arrow> will move the caret position to the beginning
 # of the current or previous word. The default behavior write
@@ -62,21 +63,46 @@ set mark-directories on
 # an annoying '[C'
 "\e\e[C": forward-word
 
-# <alt-L> will write the '|' pipe char. The default behavior
-# do nothing.
-"\el": "|"
-
-# <alt-N> will write the '~' tilde char. The default behavior
-# write annoying '^[n'
+# <alt-N> and <ctrl-N> will write the '~' tilde char.
+# The default behavior of <alt-N> delete the current line and write
+# an annoying ':'
+# <altgr-N> also write '~' but you need to press it twice
 "\en": "~"
+"\C-n": "~"
 
-# <alt-shift-(> will write '[]' and move the caret after the opening
-# bracket. The default behavior write strange things
-"\e5": "[]\C-b"
-
-# <alt-(> will write '{}' and move the caret after the opening
-# bracket. The default behavior do nothing
-"\e(": "{}\C-b"
-
-# <alt-shift-/> will write '\'. The default behavior do nothing
-"\e/": "\\"
+# NOTE: some shortcut tested/working on msysGit bash
+# "\C-b": "<ctrl-b>"
+# "\eb": "<alt-b>"
+# "\e\e[2~": "<alt-inser>"
+# "\e[1~": "<home>"
+# "\e[2~": "<inser>"
+# "\e[3~": "<suppr>"
+# "\e[4~": "<end>"
+# "\e[5~": "<page-up>"
+# "\e[6~": "<page-down>"
+# "\e\e[1~": "<alt-home>"
+# "\e\e[2~": "<alt-inser>"
+# "\e\e[3~": "<alt-suppr>"
+# "\e\e[4~": "<alt-end>"
+# "\e\e[5~": "<alt-page-up>"
+# "\e\e[6~": "<alt-page-down>"
+# "\C-x\C-r": "<ctrl-x then ctrl-r>"
+# "\e\e[A": "<alt-up-arrow>"
+# "\e\e[B": "<alt-down-arrow>"
+# "\e\e[D": "<alt-left-arrow>"
+# "\e\e[C": "<alt-right-arrow>"
+# "\C-[[A": "<up-arrow with or without ctrl-altgr-shift>"
+# "\C-[[B": "<down-arrow with or without ctrl-altgr-shift>"
+# "\C-[[D": "<left-arrow with or without ctrl-altgr-shift>"
+# "\C-[[C": "<right-arrow with or without ctrl-altgr-shift>"
+# TAB: "<tab or shift-tab>"
+# "\M-y": "<alt-y>"
+# "\C-x!": "<ctrl-x then !>"
+# "\M-=": "<alt-=>"
+# "\M-?": "<alt-? with shift>"
+# "\C-x/": "<ctrl-x then / with shift>"
+# "\C-x@": "<ctrl-x then @ with altgr>"
+# "\C-x$": "<ctrl-x then $>"
+# "\C-p": "<ctrl-p>"
+# "\M-[A": "<up-arrow with or without ctrl-altgr-shift>"
+# "\C-x\C-r": "<ctrl-x then ctrl-r>"
