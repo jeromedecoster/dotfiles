@@ -1,0 +1,106 @@
+#!/bin/bash
+
+function prompt_state() {
+    local start i c r found
+    [[ $LOCAL_CHANGE -ne 1 ]] && start=1 || start=0
+    
+    c="${BLU}"
+    for (( i=start; i<=${#CHOICES[@]}; i=i+1 )); do
+        c="$c${CHOICES[i]}"
+    done
+    c="$c${RES}"
+
+    echo -e -n "Select a previous state [$c]: "
+    read r
+    # lowercase the result
+    r=$(echo "$r" | tr '[A-Z]' '[a-z]')
+    case "$r" in
+                a) [[ $LOCAL_CHANGE -eq 1 ]] && SELECT='a' || prompt_state ;;
+        b|c|d|e|f)
+                    found=0
+                    for (( i=start; i<=${#CHOICES[@]}; i=i+1 )); do
+                        [[ "$r" == ${CHOICES[i]} ]] && found=1
+                    done
+                    [[ $found -eq 1 ]] && SELECT="$r" || prompt_state 
+                ;;
+               '') [[ $LOCAL_CHANGE -eq 1 ]] && SELECT='a' || SELECT='b' ;;
+                *) prompt_state ;;
+    esac
+}
+
+if [[ "$(git status 2>/dev/null)" ]]; then
+    status=$(git status)
+    if [[ $(echo "$status" | grep -E "^# Initial commit" -c) -eq 1 ]]; then
+        echo "error: Initial commit, nothing can be undone" >&2 && exit 0
+    fi
+
+    if [[ $(echo "$status" | grep -E "^# Changes not staged for commit" -c) -eq 1 ]]; then
+        LOCAL_CHANGE=1
+    fi
+    
+    old_IFS=$IFS
+    IFS=$'\n'
+    # max size of author names
+    siz=$(git log --pretty="%an" | head -n 6 | awk '{ l=length($0); if (l>m){m=l} } END{ print m }')
+
+    # author names in an array
+    authors=($(git log --pretty="%an" | head -n 6))
+
+    # commit count (max 6)
+    COUNT=${#authors[@]}
+    # special case
+    if [[ $COUNT -eq 1 && $LOCAL_CHANGE -ne 1 ]]; then
+        echo "error: First commit without local changes, nothing can be undone" >&2 && exit 0
+    fi
+    
+    # subjects and short hashes in an array
+    subjects=($(git log --pretty="%s" | head -n 6))
+    hashes=($(git log --pretty="%h" | head -n 6))
+    
+    CHOICES=()
+    arr=(a b c d e f)
+    [[ $LOCAL_CHANGE -eq 1 ]] && arr[0]=A || arr[1]=B
+    for (( i=0; i<COUNT; i=i+1 )); do
+        CHOICES[$i]=${arr[$i]}
+    done
+
+    BLU="\033[0;34m"
+    GRY="\033[0;37m"
+    RES="\033[0m"
+
+    for (( i=0; i<COUNT; i=i+1 )); do
+        cho=${CHOICES[i]}
+        aut=${authors[i]}
+        sub=${subjects[i]}
+        if [[ $i -eq 0 ]]; then
+            if [[ $LOCAL_CHANGE -eq 1 ]]; then
+                printf "  $BLU%s)$RES %-"$siz"s - %s $BLU(undo local changes)$RES\n" $cho $aut $sub
+            else
+                printf "  $GRY%s) %-"$siz"s - %s (current state)$RES\n" $cho $aut $sub
+            fi
+        else
+            printf "  $BLU%s)$RES %-"$siz"s - %s\n" $cho $aut $sub
+        fi
+    done
+    unset i
+    IFS=$old_IFS
+
+    echo
+    prompt_state
+    case "$SELECT" in
+        a) h=${hashes[0]} ;;
+        b) h=${hashes[1]} ;;
+        c) h=${hashes[2]} ;;
+        d) h=${hashes[3]} ;;
+        e) h=${hashes[4]} ;;
+        f) h=${hashes[5]} ;;
+    esac
+    
+    # reset to the selected state
+    git reset --hard "$h"
+else
+    # write the error message in the stderr
+    # and exit with exitcode 128 which is the same error code than
+    # returned by 'git pull' inside a non-git repo directory
+    echo "fatal: Not a git repository (or any of the parent directories): .git" >&2 && exit 128
+fi

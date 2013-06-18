@@ -25,5 +25,6 @@ alias gpom="git push -u origin master"
 alias grh="git reset --hard"
 alias gs="git status"
 # git extensions
-alias gi="git ignore"
+alias gig="git ignore"
 alias gsu="git summary"
+alias gun="git undo"
