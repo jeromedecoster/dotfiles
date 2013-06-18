@@ -1,8 +1,19 @@
 alias ..="cd .."
 alias ...="cd ../.."
+
 # subl is a symbolic link created during the ~/.dotfiles installation
 alias s="subl"
+# browse is my .dotfiles/osx/bin/browse executable
 alias b="browse"
+# tree is /usr/local/bin/tree installed with homebrew
+if [[ "$OSTYPE" =~ ^darwin ]]; then
+    t=$(type -P tree)
+    if [[ -x "$t" ]]; then
+        export TREE_COLORS='no=00:di=00;34:ln=00;32:ex=00;30'
+        alias lt="tree --noreport -aC -I '.DS_Store|.Spotlight-V100|.Trashes|desktop.ini|Thumbs.db|.git|.svn'"
+    fi
+    unset t
+fi
 
 # git aliases...
 alias ga="git add"
