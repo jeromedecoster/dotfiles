@@ -1,0 +1,159 @@
+#!/usr/bin/env ruby
+# encoding: utf-8
+
+# the lt command is an advanced tree listing.
+# the tree command is required (installed with homebrew)
+# 
+# exclude annoying files from the tree (.DS_Store Thumbs.db .git .svn ...)
+# all folders are displayed in blue, with a trailing '/'
+# all empty folders are displayed in dark yellow, with a trailing '/'
+# all empty files (0 ko) are displayed in dark yellow
+# all executable text files (chmoded as executable for the current user, not binary files,
+#   and starting with a shebang '#!') are colored in red
+# all windows executable '.bat' and '.cmd' are colored in red
+# all symbolic link files are displayed in green, followed by the targeted file
+# all other files are displayed in black
+
+require 'pathname'
+require 'optparse'
+
+def exit_msg(msg)
+    $stderr.puts "#{File.basename __FILE__}: #{msg}"
+    exit 1
+end
+
+tree = `type -P tree`.strip
+if tree.size == 0 or not File.executable? tree
+    exit_msg 'tree command not found'
+end
+
+# ignored files
+ignore = %w{ .DS_Store .Spotlight-V100 .Trashes desktop.ini Thumbs.db .git .svn }
+
+parser = OptionParser.new do |opts|
+    # add more ignoted files
+    opts.on( '-I=pat' ) do |pat|
+        ignore.concat pat.split('|')
+    end
+    # overwrite the standard help message
+    opts.on( '-h', '--help' ) do
+        file = File.basename __FILE__
+        puts "usage: #{file} [-I] [directory]"
+        puts "       #{file} -I='*.jpg|*.png' path/to/directory"
+        puts "option: -I ignore files that match the pattern"
+        exit 0
+    end
+end
+
+begin
+    parser.parse!
+rescue OptionParser::MissingArgument => e
+    exit_msg "missing argument for option #{e.message[e.message.index('-')..-1]}"
+rescue OptionParser::InvalidOption => e
+    exit_msg "invalid option #{e.message[e.message.index('-')..-1]}"
+end
+
+folder = ''
+if ARGV.size > 0
+    folder = ARGV[0]
+    if not File.directory? folder or not File.readable? folder
+        exit_msg "the directory #{folder} is not readable"
+    end
+end
+
+arr = `tree --dirsfirst --noreport -apfN -I '#{ignore.join('|')}' #{folder}`.strip.split "\n"
+arr.each do |e|
+    # capture:
+    # - folder graph
+    # - first char (to search for type 'd' or 'l')
+    # - fourth char (to search for user executable 'x')
+    # - path/to/file
+    m = e.match /^(.*)\[(.)[r-][w-]([x-])[rwx-]{6}\]  (.*)$/
+    if not m.nil? and m.captures.size == 4
+        p = Pathname.new(m.captures[3])
+        # the file basename without: space\ in\ name
+        name = p.basename.to_s.gsub "\\ ", ' '
+        # the file expanded path without: space\ in\ name
+        expanded = p.expand_path.to_s.gsub("\\ ", ' ')
+
+        # the file is a directory
+        if m.captures[1] == 'd'
+            # puts m.captures.inspect
+
+            # the expanded path must be corrected to use it with Dir.glob
+            # because some chars '\ ? * [ ]' are used in a regex way
+            # if they are not escaped, the directory path is not found
+            escaped = expanded.gsub('\\', '\\\\\\').gsub('?', '\?')
+                              .gsub('*', '\*').gsub('[', '\[').gsub(']', '\]')
+
+            # file count inside this folder including hidden files starting with a dot
+            # but excluding the special directory '.' and '..'
+            count = Dir.glob("#{escaped}/*", File::FNM_DOTMATCH).reject { |a| a =~ /\/\.{1,2}$/ }.size
+            
+            # empty folders are colored in dark yellow
+            # the others in blue 
+            col  = count == 0 ? 33 : 34
+            name = "\033[0;#{col}m#{name}/\033[0m"
+        
+        # the file is an executable
+        elsif m.captures[2] == 'x'
+
+            # it's a symbolic link
+            if m.captures[1] == 'l'
+                
+                # symbolic link has special display
+                # the name is colored in green
+                # then followed by ' -> ' then the targeted path
+
+                # the path must me captured again
+                mm = expanded.match /^(.*) \-> (.*)$/
+                if not mm.nil? and mm.captures.size == 2
+                    name = "\033[0;32m#{File.basename mm.captures[0]}\033[0m -> #{mm.captures[1]}"
+                else
+                    # fallback if there is a problem with a regex
+                    # just show the name in green
+                    # brute force name extraction from the link
+                    link    = m.captures[3]
+                    extract = File.basename link[0..link.index(' -> ')-1]
+                    name    = "\033[0;32m#{extract}\033[0m"
+                end
+
+            # it's not a symbolic link
+            else
+                # check if the file is not a real binary file (means an editable
+                # text file chmoded as executable)
+                # the logic was taken from the ruby gem 'ptools'
+                # the logic is from the File.binary? method
+                # https://github.com/djberg96/ptools/blob/master/lib/ptools.rb#L90
+                s = (File.read(expanded, File.stat(expanded).blksize) || '').split(//)
+                if not (((s.size - s.grep(" ".."~").size) / s.size.to_f) > 0.30)
+                    # now check is the file has a size (> 0 ko)
+                    # and if the 2 first charrs of the first line are a shebang
+                    # if yes, this text file is an executable. His name is displayed in red
+                    if File.size?(expanded) and File.open(expanded){|f| f.readline}[0..1] == '#!'
+                        name = "\033[0;31m#{name}\033[0m"
+                    end
+                end
+            end
+
+        # it's not a directory or an executalbe file
+        else
+            # file without size (0 ko) are colored in dark yellow
+            if not File.size? expanded
+                name = "\033[0;33m#{name}\033[0m"
+            else
+                # non-executable files, but known as windows
+                # executable files are colored in red
+                ext = p.extname.downcase
+                if ext == '.cmd' or ext == '.bat'
+                    name = "\033[0;31m#{name}\033[0m"
+                end
+            end
+        end
+        puts m.captures[0] + name
+
+    # no match, write the raw line (usually the root tree '.')
+    else
+        puts e
+    end
+end
