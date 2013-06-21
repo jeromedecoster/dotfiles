@@ -125,6 +125,10 @@ function prompt_path() {
     else
         tmp=$PWD
     fi
+
+    # '\' and '$' must be escaped
+    tmp=$(echo "$tmp" | sed -e 's/\\/\\\\/g' -e 's/\$/\\\\$/g')
+
     # max length of the path
     lng=45
     if [[ ${#tmp} -gt $lng ]]; then
