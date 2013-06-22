@@ -75,7 +75,7 @@ If ( Test-Path $HOME\.dotfiles -PathType Container ) {
     Write-Host 'Update repository...' -NoNewline
     Set-Location $HOME\.dotfiles
     # capture error
-    $error=$(git pull --quiet 2>&1)
+    $err=$(git pull --quiet 2>&1)
     If ( $LASTEXITCODE -Ne 0 ) {
         NotOk
         Write-Host $error
@@ -87,7 +87,7 @@ If ( Test-Path $HOME\.dotfiles -PathType Container ) {
 Else {
     Write-Host 'Clone repository...' -NoNewline
     # capture error
-    $error=$(git clone --quiet https://github.com/jeromedecoster/dotfiles.git $HOME\.dotfiles 2>&1)
+    $err=$(git clone --quiet https://github.com/jeromedecoster/dotfiles.git $HOME\.dotfiles 2>&1)
     If ( $LASTEXITCODE -Ne 0 ) {
         NotOk
         Write-Host $error
