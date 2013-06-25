@@ -15,7 +15,7 @@ if [[ $# -eq 0 ]]; then
     path="$(pwd)"
 # with 1 argument, the path is this argument
 elif [[ $# -eq 1 ]]; then
-    path="$(echo "$1")"
+    path="$1"
 # otherwise write the usage message in the stderr and exit 1
 else
     echo 'usage: abspath [directory]' >&2
@@ -24,12 +24,11 @@ fi
 
 
 if [[ "$ruby" ]]; then
-    # for ruby the chars (' *) must be escaped before the script
-    path="$(echo "$path" | sed -e "s/*/\\*/g" -e "s/'/\\\'/g")"
+    # for ruby the char ['] must be escaped before the script
+    path="$(echo "$path" | sed -e "s/'/\\\'/g")"
     echo "$(ruby -e "puts File.expand_path('$path')")"
 else
-    # for python, the chars (' ? \) must be escaped first
-    path="$(echo "$path" | sed  -e "s/'/\\\'/g" -e "s/?/\\\?/g" -e "s/\\\/\\\\\\\/g")"
-    # then the char * must be escaped within the script
-    echo "$(python -c "import os; print(os.path.abspath('$path'.replace('*', '\*')))")"
+    # for python the chars ['\] must be escaped before the script
+    path="$(echo "$path" | sed -e "s/\\\/\\\\\\\/g" -e "s/'/\\\'/g")"
+    echo "$(python -c "import os; print(os.path.abspath('$path'))")"
 fi
