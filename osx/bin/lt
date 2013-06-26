@@ -12,6 +12,7 @@
 #   and starting with a shebang '#!') are colored in red
 # all windows executable '.bat' and '.cmd' are colored in red
 # all symbolic link files are displayed in green, followed by the targeted file
+#   if the targeted file exists, the path is display in black, otherwise it's dark yellow
 # all other files are displayed in black
 
 require 'pathname'
@@ -61,6 +62,9 @@ if ARGV.size > 0
     end
 end
 
+# absolute path of the folder, will be used to check the symbolic links targets
+abs_folder = File.expand_path folder
+
 arr = `tree --dirsfirst --noreport -apfN -I '#{ignore.join('|')}' #{folder}`.strip.split "\n"
 arr.each do |e|
     # capture:
@@ -108,7 +112,15 @@ arr.each do |e|
                 # the path must me captured again
                 mm = expanded.match /^(.*) \-> (.*)$/
                 if not mm.nil? and mm.captures.size == 2
-                    name = "\033[0;32m#{File.basename mm.captures[0]}\033[0m -> #{mm.captures[1]}"
+                    # the target of the symbolic link
+                    target = abs_folder + mm.captures[1][1..-1]
+                    # if the symbolic link target an existing file, the target path is written in black
+                    if File.exist? target
+                        name = "\033[0;32m#{File.basename mm.captures[0]}\033[0m -> #{mm.captures[1]}"
+                    # otherwise the target path is written in dark yellow
+                    else
+                        name = "\033[0;32m#{File.basename mm.captures[0]}\033[0m -> \033[0;33m#{mm.captures[1]}\033[0m"
+                    end
                 else
                     # fallback if there is a problem with a regex
                     # just show the name in green
