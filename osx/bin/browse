@@ -9,20 +9,6 @@ EOF)
     echo -e "$msg" >&2 && exit 1
 }
 
-# resolve a path to an absolute path (require Ruby or Python)
-function abspath() {
-    [[ $# -ne 1 ]] && echo "script error: abspath require 1 argument" >&2 && exit 1
-    if [[ $(type -P ruby) ]]; then
-        echo $(ruby -e "print File.expand_path '$1'")
-    elif [[ $(type -P python) ]]; then
-        echo $(python -c "import os;print(os.path.abspath('$1'))")
-    else
-        # write the error message in the stderr
-        # and exit with exitcode 1
-        echo 'error: Ruby or Python is required' >&2 && exit 1
-    fi
-}
-
 # open with the Finder, force column view
 # empty log to prevent the annoying echo 'column view' in the Terminal
 function finder() {
@@ -69,6 +55,22 @@ function chrome() {
 EOF
 }
 
+function check_ruby_python() {
+    # Ruby or Python are not found
+    # write the error message in the stderr and exit 1
+    if [[ ! "$RUBY" && ! "$PYTHON" ]]; then
+        echo -e "error: Ruby or Python is required" >&2
+        exit 1
+    fi
+}
+
+# required to compute absolute path in special cases
+RUBY=$(type -P ruby)
+PYTHON=$(type -P python)
+
+RED="\033[0;31m"
+RES="\033[0m"
+
 if [[ $# -gt 0 && $# -lt 3 ]]; then
     [[ -d '/Applications/Google Chrome.app' ]] && chrome=1
     [[ -d '/Applications/Firefox.app' ]] && firefox=1
@@ -95,7 +97,13 @@ if [[ $# -gt 0 && $# -lt 3 ]]; then
     if [[ ${uri:$((${#uri}-4))} == 'html' || ${uri:$((${#uri}-3))} == 'htm' ]]; then
         # html file detected, check it's a real local file
         # if yes, will be opened with 'file:///path/to/file' uri 
+
+        # first test if Ruby or Python is installed
+        # if not, write an error message in the stderr and exit 1
+        check_ruby_python
+
         tmp=$(abspath "$uri")
+        # if the absolute path is an existing file, set the flag localhtml
         [[ -f "$tmp" ]] && localhtml=1
     fi
 
@@ -113,6 +121,11 @@ if [[ $# -gt 0 && $# -lt 3 ]]; then
         uri=${uri:7}
     elif [[ ${uri:0:1} == '.' ]]; then
         # if starts with a dot, get the absolute path with Ruby or Python
+        
+        # first test if Ruby or Python is installed
+        # if not, write an error message in the stderr and exit 1
+        check_ruby_python
+
         uri=$(abspath "$uri")
         # exit if the function return an error
         [[ $? -ne 0 ]] && exit 1
@@ -122,7 +135,15 @@ if [[ $# -gt 0 && $# -lt 3 ]]; then
     # exception for html local files, opened with a browser
     if [[ ! "$localhtml" && ${uri:0:1} == '/' ]]; then
         [[ -f "$uri" ]] && uri=$(dirname "$uri")
-        finder $uri
+        
+        # if the file or directory exists, open it with the Finder
+        if [[ -e "$uri" ]]; then 
+            finder $uri
+        # otherwise write an error message in the stderr and exit 1
+        else
+            echo -e "error: the path $RED$uri$RES does not exist" >&2
+            exit 1
+        fi
     else
 
         # browsers require full url (starting with http://)
