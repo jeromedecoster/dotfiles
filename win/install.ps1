@@ -144,3 +144,55 @@ If ( Empty $HOME\.dotfiles\.backup ) {
     Yellow $HOME\.dotfiles\.backup
     Remove-Item -Recurse -Force $HOME\.dotfiles\.backup
 }
+
+# clean the user Path environment variable (remove empty paths ';;' and nonexistent directories)
+# will do the same for the machine Path environment variable but the Powsershell console must be
+# runned as Administrator to achieve it
+Function CleanPaths() {
+    Param( [String] $type )
+    If ( $type -Ne 'User' -And $type -Ne 'Machine' ) {
+        Write-Host "Runtime error: CleanPaths first argument must be User or Machine"
+        Exit 1
+    }
+    If ($type -Eq 'Machine') {
+        $identity = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent())
+        If (-Not $identity.IsInRole([Security.Principal.WindowsBuiltInRole] 'Administrator')) {
+            Write-Host "Skip: Powershell must be runned as Administrator to clean Machine paths"
+            Return
+        }
+    }
+    $paths = [Environment]::GetEnvironmentVariable('Path', $type).Split(";")
+    $arr = @()
+    $count = 0
+    ForEach ($p in $paths) {
+        If ($p.Length -And (Test-Path $p -PathType Container)) {
+            $arr += $p
+        }
+        Else {
+            $count += 1
+        }
+    }
+    If ($count -Gt 0) {
+        $paths = $arr -Join ';'
+        [Environment]::SetEnvironmentVariable('Path', $paths, $type);
+
+        If ($count -Eq 1) {
+            Write-Host "Removed 1" $type.ToLower() "path"
+        }
+        Else {
+            Write-Host "Removed" $count $type.ToLower() "paths"
+        }
+    }
+    
+}
+CleanPaths 'Machine'
+CleanPaths 'User'
+
+# add the folder ~\.dotfiles\win\bin to the user Path environment variable
+# if it does not already exist
+$path = [Environment]::GetEnvironmentVariable('Path', 'User')
+$bin  = "$HOME\.dotfiles\win\bin"
+If (! $path.Contains($bin)) {
+    $path = $path + ";$bin"
+    [Environment]::SetEnvironmentVariable('Path', $path, 'User');
+}
