@@ -41,17 +41,16 @@ function zr() {
         result=()
         for i in "${lines[@]}"; do
             # extract the directory path from the cache line (the safest way posible)
-            folder=$(echo "$i" | awk '
+            folder=$(echo "$i" | awk -F '|' '
             {   
-                c = split($1, a, /[|]/)
-                if (c == 3) {
-                    print a[1]
+                if (NF == 3) {
+                    print $1
                 }
                 else {
                     s = ""
-                    for ( i=1; i<(c-1); i++)
+                    for ( i=1; i<(NF-1); i++)
                     {
-                        s = s "|" a[i]
+                        s = s "|" $i
                     }
                     print substr(s,2)
                 }
