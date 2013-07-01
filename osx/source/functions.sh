@@ -94,3 +94,63 @@ function prompt() {
         PROMPT_COMMAND="prompt_basic"
     fi
 }
+
+# uninstall a part or all of the dotfiles components
+# usefull for the development and tests
+function undot() {
+    local usage
+    [[ $# -ne 1 ]] && usage=1
+    [[ "$1" != '-a' && "$1" != '-b' && "$1" != '-d' && "$1" != '-u' ]] && usage=1
+    if [[ "$usage" -ne 1 ]]; then
+        # remove the user files, leaves a minimum content
+        if [[ "$1" == '-u' || "$1" == '-a' ]]; then
+            rm -f ~/.inputrc
+            local cnt=$(cat <<EOF
+[user]
+    name = jerome@work
+    email = github@jeromedecoster.com
+EOF)
+            echo -e "$cnt" > ~/.gitconfig
+            local cnt=$(cat <<EOF
+# Load RVM into a shell session *as a function*
+[[ -s "$HOME/.rvm/scripts/rvm" ]] && source "$HOME/.rvm/scripts/rvm"
+EOF)
+            echo -e "$cnt" > ~/.bash_profile
+        fi
+
+        # remove homebrew and formulas
+        if [[ "$1" == '-b' || "$1" == '-a' ]]; then
+            local brew_path=$(type -P brew)
+            if [[ "$brew_path" && -x "$brew_path" ]]; then
+                brew uninstall tree &>/dev/null
+                brew uninstall man2html &>/dev/null
+                brew uninstall phantomjs &>/dev/null
+                # brew prune: remove dead symblink
+                brew prune 1>/dev/null
+                tmp=$(brew --prefix)
+                rm -rf $tmp/bin/brew
+                rm -rf $tmp/Library/brew.rb
+                rm -rf $tmp/Contributions
+                rm -rf $tmp/Cellar
+                rm -rf $tmp/Library
+                rm -rf $tmp/share/man/man1/brew.1
+                rm -rf $tmp/.git
+            fi
+        fi
+
+        # remove ~/.dotfiles directory
+        if [[ "$1" == '-d' || "$1" == '-a' ]]; then
+            rm -rf ~/.dotfiles
+        fi
+    else
+        # write the usage message in the stderr and exit 1
+        local msg=$(cat <<EOF
+usage: undot [-abdu]       # requires one option selected
+option: -a remove all
+        -b remove homebrew and formulas
+        -d remove ~/.dotfiles directory
+        -u remove user files
+EOF)
+        $(echo -e "$msg" >&2; exit 1)
+    fi
+}
