@@ -104,38 +104,6 @@ ok
 
 # start of the Homebrew part...
 
-function uninstall_homebrew() {
-    local brew_path=$(type -P brew)
-    echo -n "Uninstall $(blue homebrew)..."
-    if [[ "$brew_path" && -x "$brew_path" ]]; then
-        brew uninstall tree &>/dev/null
-        brew uninstall man2html &>/dev/null
-        brew uninstall phantomjs &>/dev/null
-        # brew prune: remove dead symblink
-        brew prune 1>/dev/null
-        tmp=$(brew --prefix)
-        rm -rf $tmp/bin/brew
-        rm -rf $tmp/Library/brew.rb
-        rm -rf $tmp/Contributions
-        rm -rf $tmp/Cellar
-        rm -rf $tmp/Library
-        rm -rf $tmp/share/man/man1/brew.1
-        rm -rf $tmp/.git
-        ok
-        echo 'Homebrew uninstalled, now exit'
-    else
-        notok
-        echo 'Homebrew seems not installed, now exit'
-    fi
-    # note, use the command below to find installed stuff
-    # find /usr/local -name '*brew*' 2>/dev/null
-    exit
-}
-# ATTENTION
-# code below 'uninstall_homebrew' is for uninstalling Homebrew
-# uncomment only for dev/test
-# uninstall_homebrew
-
 brew_path=$(type -P brew)
 if [[ ! "$brew_path" ]]; then
     # homebrew is cool but doesn't have an online repository like npm or rubygem

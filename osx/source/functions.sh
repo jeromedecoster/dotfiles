@@ -100,8 +100,11 @@ function prompt() {
 function undot() {
     local usage
     [[ $# -ne 1 ]] && usage=1
-    [[ "$1" != '-a' && "$1" != '-b' && "$1" != '-d' && "$1" != '-u' ]] && usage=1
+    [[ "$1" != '-a' && "$1" != '-b' && "$1" != '-d' && "$1" != '-i' && "$1" != '-u' ]] && usage=1
     if [[ "$usage" -ne 1 ]]; then
+        local BLU="\033[0;34m"
+        local RES="\033[0m"
+
         # remove the user files, leaves a minimum content
         if [[ "$1" == '-u' || "$1" == '-a' ]]; then
             rm -f ~/.inputrc
@@ -116,6 +119,9 @@ EOF)
 [[ -s "$HOME/.rvm/scripts/rvm" ]] && source "$HOME/.rvm/scripts/rvm"
 EOF)
             echo -e "$cnt" > ~/.bash_profile
+            echo -e "Removed $BLU~/.inputrc$RES"
+            echo -e "Replaced $BLU~/.gitconfig$RES"
+            echo -e "Replaced $BLU~/.bash_profile$RES"
         fi
 
         # remove homebrew and formulas
@@ -125,6 +131,7 @@ EOF)
                 brew uninstall tree &>/dev/null
                 brew uninstall man2html &>/dev/null
                 brew uninstall phantomjs &>/dev/null
+                echo -e "Removed ${BLU}homebrew formulas$RES"
                 # brew prune: remove dead symblink
                 brew prune 1>/dev/null
                 tmp=$(brew --prefix)
@@ -135,20 +142,27 @@ EOF)
                 rm -rf $tmp/Library
                 rm -rf $tmp/share/man/man1/brew.1
                 rm -rf $tmp/.git
+                echo -e "Removed ${BLU}homebrew$RES"
             fi
         fi
 
         # remove ~/.dotfiles directory
         if [[ "$1" == '-d' || "$1" == '-a' ]]; then
             rm -rf ~/.dotfiles
+            echo -e "Removed $BLU~/.dotfiles$RES"
+        fi
+
+        if [[ "$1" == '-i' ]]; then
+            bash -c "$(curl -fsSL raw.github.com/jeromedecoster/dotfiles/master/osx/install)" && source ~/.bash_profile
         fi
     else
         # write the usage message in the stderr and exit 1
         local msg=$(cat <<EOF
-usage: undot [-abdu]       # requires one option selected
+usage: undot [-abdiu]       # requires one option selected
 option: -a remove all
         -b remove homebrew and formulas
         -d remove ~/.dotfiles directory
+        -i launch install script
         -u remove user files
 EOF)
         $(echo -e "$msg" >&2; exit 1)
