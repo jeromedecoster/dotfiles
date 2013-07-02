@@ -209,3 +209,59 @@ function kof() {
     end tell
 EOF
 }
+
+# kat, 'kill all terminal'
+# closes all the opened Terminal windows
+function kat() {
+    arch -i386 osascript <<EOF
+    if application "Terminal" is running then
+        tell application "Terminal"
+            set lst to windows as list
+            repeat with e in lst
+                close e
+            end repeat
+        end tell
+    end if
+EOF
+}
+
+# kof, 'kill other terminal'
+# keeps the current Terminal window/tab and
+# closes all the others
+function kot() {
+    arch -i386 osascript <<EOF
+    if application "Terminal" is running then
+        tell application "Terminal"
+            set lst to windows as list
+            set cnt to count of lst
+            if cnt > 1 then
+                repeat with e in (items 2 thru cnt of lst)
+                    close e
+                end repeat
+            end if
+            if cnt > 0 then
+                activate
+                set lst to tabs of item 1 of lst
+                set cnt to count of lst
+                if cnt > 1 then
+                    repeat with i from 1 to count lst
+                        if selected of item i of lst then
+                            set idx to i
+                            exit repeat
+                        end if
+                    end repeat
+                    repeat with i from 1 to cnt
+                        -- revese idx because repeat with can only increase values
+                        set rev to (cnt + 1 - i)
+                        if not rev = idx then
+                            set selected of item rev of lst to true
+                            -- keystroke hack because there is no api to close terminal tab
+                            tell application "System Events" to tell process "Terminal.app" to keystroke "w" using command down
+                        end if
+                    end repeat
+                end if
+            end if
+        end tell
+    end if
+EOF
+}
