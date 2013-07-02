@@ -168,3 +168,44 @@ EOF)
         $(echo -e "$msg" >&2; exit 1)
     fi
 }
+
+# kaf, 'kill all finder'
+# closes all the opened Finder windows and set the view
+# of the next opened window to column view
+function kaf() {
+    arch -i386 osascript <<EOF
+    tell application "Finder"
+        set lst to windows as list
+        set cnt to count of lst
+        if cnt > 1 then
+            repeat with e in (items 2 thru cnt of lst)
+                close e
+            end repeat
+        end if
+        if cnt > 0 then
+            set e to item 1 of lst
+            set current view of e to column view
+            close e
+        end if
+        log ""
+    end tell
+EOF
+}
+
+# kof, 'kill other finder'
+# keeps the frontmost window of the Finder as is
+# and closes all the others
+function kof() {
+    arch -i386 osascript <<EOF
+    tell application "Finder"
+        set lst to windows as list
+        set cnt to count of lst
+        if cnt > 1 then
+            repeat with e in (items 2 thru cnt of lst)
+                close e
+            end repeat
+        end if
+        log ""
+    end tell
+EOF
+}
