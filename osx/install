@@ -234,7 +234,7 @@ copy_files ~/.dotfiles/osx/user ~ $backup
 # http://developer.chrome.com/extensions/external_extensions.html#faq
 # please note there is no safe and simple ways to unsintall an extension, you need to do it manually
 function chrome_extension() {
-    # abort function if Chrome is not installed
+    # abort function if chrome is not installed
     [[ ! -d '/Applications/Google Chrome.app' ]] && return
     [[ $# -ne 3 ]] && echo "Runtime error: chrome_extension require 3 arguments" && exit 1
     # argument 1, the name to be displayed
@@ -268,6 +268,53 @@ chrome_extension 'JSON Formatter' 'bcjindcccaagfpapjjmafapmmgkkhgoa' \
                  'https://chrome.google.com/webstore/detail/json-formatter/bcjindcccaagfpapjjmafapmmgkkhgoa'
 chrome_extension 'LiveReload'     'jnihajbhpnppcggbcgedagnkighmdlei' \
                  'https://chrome.google.com/webstore/detail/livereload/jnihajbhpnppcggbcgedagnkighmdlei'
+
+# install a firefox extension. The installation process is manual, just like for the chrome process
+# please note the unsintall is also manual
+function firefox_extension() {
+    # abort function if firefox is not installed
+    [[ ! -d '/Applications/Firefox.app' ]] && return
+    [[ $# -ne 3 ]] && echo "Runtime error: firefox_extension require 3 arguments" && exit 1
+    # argument 1, the name to be displayed
+    # argument 2, the xpi filename to checked inside the extensions directory (if found, it's installed)
+    # argument 3, the URL to open with firefox for launch manual installation
+    local name=$(blue "$1")
+    echo -n -e "Check $name firefox extension..."
+    local profile="$(find ~/Library/Application\ Support/Firefox/Profiles -type d -depth 1 -name '*.default')"
+    if [[ ! "$profile" || ! -f "$profile/extensions/$2" ]]; then
+        notok
+        while true; do
+            echo -e -n "Install $name? [Yn]: "
+            read r
+            r=$(echo "$r" | tr '[A-Z]' '[a-z]')
+            case "$r" in
+                y|n) break ;;
+                 '') r='y' && break ;;
+            esac
+        done
+
+        [[ "$r" == 'y' ]] && open -a Firefox.app $3
+    else
+        ok
+    fi
+}
+
+firefox_extension 'Adblock Plus' '{d10d0bf8-f5b5-c8b4-a8b2-2b9879e08c5d}.xpi' \
+                  'https://addons.mozilla.org/en-US/firefox/addon/adblock-plus/'
+
+firefox_extension 'Firebug'      'firebug@software.joehewitt.com.xpi' \
+                  'https://addons.mozilla.org/en-US/firefox/addon/firebug/'
+
+# need to relaunch Firefox
+firefox_extension 'Net Export'   'netexport@getfirebug.com.xpi' \
+                  'https://getfirebug.com/releases/netexport/'
+
+# need to relaunch Firefox
+firefox_extension 'DownThemAll'  '{DDC359D1-844A-42a7-9AA1-88A850A938A8}.xpi' \
+                  'https://addons.mozilla.org/en-US/firefox/addon/downthemall/'
+
+firefox_extension 'LiveReload'   'livereload@livereload.com.xpi' \
+                  'http://help.livereload.com/kb/general-use/browser-extensions'
 
 # removes some folders if stayed empty
 if [[ $(empty $backup) -eq 1 ]]; then
