@@ -36,6 +36,7 @@ function empty() {
     [[ $(find $1 -depth 1 2>/dev/null | grep . -c) -eq 0 ]] && echo 1 || echo 0
 }
 
+# open an url with chrome if installed, otherwise with firefox, otherwise with safari
 function browser() {
     local url=$1
     [[ ${url:0:4} != 'http' ]] && url="http://$url"
@@ -79,6 +80,128 @@ EOF
     fi
 }
 
+# install homebrew formula
+function install_formula() {
+    if [[ ! $(brew ls -1 | grep -E "^$1$") ]]; then
+        echo -n "Install $(blue $1)..."
+        # redirect stdout and stderr to null, full silence
+        brew install "$1" &>/dev/null
+        if [[ $? -ne 0 ]]; then
+            notok
+            echo "Failed: $1 installation return an error"
+        else
+            ok
+        fi
+    fi
+}
+
+# copy files from a folder to a folder and backup all already existing files
+# to another folder
+function copy_files() {
+    [[ $# -ne 3 ]] && echo "Runtime error: copy require 3 arguments" && exit 1
+    if [[ ! -d "$3" || ! -d "$3" || ! -d "$3" ]]; then
+        echo "Runtime error: copy require 3 valid paths" && exit 1
+    fi
+    local name
+    for f in $1/{.*,*}; do
+        name=$(basename "$f")
+        # not readable, skip
+        [[ ! -r "$f" ]] && continue
+        # special files, skip
+        [[ "$name" == '.' || "$name" == '..' || "$name" == '.DS_Store' ]] && continue
+        if [[ -e $2/$name ]]; then
+            mv "$2/$name" "$backup"
+            cp -rp "$f" "$2"
+            echo -e "Backup then overwrite $(blue $2/$name)"
+        else
+            cp -rp "$f" "$2"
+            echo -e "Add $(blue $2/$name)"
+        fi
+    done
+}
+
+# sets the frontmost opened terminal window as the foreground window on screen
+# and sets the other terminal windows to the background. It's a dirty hack because
+# activate set all the windows of an application to the foreground
+function terminal_frontmost() {
+    arch -i386 osascript <<EOF
+    tell application "Terminal"
+        activate
+        set skip to true
+        repeat with e in windows
+            try
+                if not skip then
+                    set frontmost of e to false
+                end if
+                set skip to false
+            end try
+        end repeat
+    end tell
+EOF
+}
+
+# install a chrome extension. The installation process is manual (open the extension page on the chrome web store)
+# even if an automatic/silent process is possible and successfully tested. Why? Because:
+# - a locally installed crx will not benefit easily/automatically of the future updates
+# - if you manually uninstall an extension that had been installed silently, this extension is definitly blacklisted
+# http://developer.chrome.com/extensions/external_extensions.html#faq
+function chrome_extension() {
+    # abort function if chrome is not installed
+    [[ ! -d '/Applications/Google Chrome.app' ]] && return
+    [[ $# -ne 3 ]] && echo "Runtime error: chrome_extension require 3 arguments" && exit 1
+    # argument 1, the name to be displayed
+    # argument 2, the id of the extension, it also the directory name to check (if directory, it's installed)
+    # argument 3, the URL to open with chrome for launch manual installation
+    local name=$(blue "$1")
+    echo -n -e "Check $name chrome extension..."
+    if [[ ! -d ~/Library/Application\ Support/Google/Chrome/Default/Extensions/$2 ]]; then
+        notok
+        while true; do
+            echo -e -n "Install $name? [Yn]: "
+            read r
+            r=$(echo "$r" | tr '[A-Z]' '[a-z]')
+            case "$r" in
+                y|n) break ;;
+                 '') r='y' && break ;;
+            esac
+        done
+
+        [[ "$r" == 'y' ]] && browser $3 && terminal_frontmost
+    else
+        ok
+    fi
+}
+
+# install a firefox extension. The installation process is manual, just like for the chrome process
+function firefox_extension() {
+    # abort function if firefox is not installed
+    [[ ! -d '/Applications/Firefox.app' ]] && return
+    [[ $# -ne 3 ]] && echo "Runtime error: firefox_extension require 3 arguments" && exit 1
+    # argument 1, the name to be displayed
+    # argument 2, the xpi filename to checked inside the extensions directory (if found, it's installed)
+    # argument 3, the URL to open with firefox for launch manual installation
+    local name=$(blue "$1")
+    echo -n -e "Check $name firefox extension..."
+    local profile="$(find ~/Library/Application\ Support/Firefox/Profiles -type d -depth 1 -name '*.default')"
+    if [[ ! "$profile" || ! -f "$profile/extensions/$2" ]]; then
+        notok
+        while true; do
+            echo -e -n "Install $name? [Yn]: "
+            read r
+            r=$(echo "$r" | tr '[A-Z]' '[a-z]')
+            case "$r" in
+                y|n) break ;;
+                 '') r='y' && break ;;
+            esac
+        done
+
+        [[ "$r" == 'y' ]] && open -a Firefox.app $3 && terminal_frontmost
+    else
+        ok
+    fi
+}
+
+
 # check Git
 echo -n "Check $(blue git)..."
 if [[ ! "$(type -p git)" ]]; then
@@ -102,7 +225,7 @@ fi
 ok
 
 
-# start of the Homebrew part...
+# Homebrew part...
 
 brew_path=$(type -P brew)
 if [[ ! "$brew_path" ]]; then
@@ -145,21 +268,6 @@ elif [[ -x "$brew_path" ]]; then
 fi
 
 # Homebrew is installed... now install some forumlas
-
-function install_formula() {
-    if [[ ! $(brew ls -1 | grep -E "^$1$") ]]; then
-        echo -n "Install $(blue $1)..."
-        # redirect stdout and stderr to null, full silence
-        brew install "$1" &>/dev/null
-        if [[ $? -ne 0 ]]; then
-            notok
-            echo "Failed: $1 installation return an error"
-        else
-            ok
-        fi
-    fi
-}
-
 install_formula tree
 install_formula man2html
 install_formula phantomjs
@@ -200,64 +308,12 @@ fi
 backup=~/.dotfiles/.backup/$(date +%Y-%m-%d--%H-%M-%S)
 mkdir -p "$backup"
 
-function copy_files() {
-    [[ $# -ne 3 ]] && echo "Runtime error: copy require 3 arguments" && exit 1
-    if [[ ! -d "$3" || ! -d "$3" || ! -d "$3" ]]; then
-        echo "Runtime error: copy require 3 valid paths" && exit 1
-    fi
-    local name
-    for f in $1/{.*,*}; do
-        name=$(basename "$f")
-        # not readable, skip
-        [[ ! -r "$f" ]] && continue
-        # special files, skip
-        [[ "$name" == '.' || "$name" == '..' || "$name" == '.DS_Store' ]] && continue
-        if [[ -e $2/$name ]]; then
-            mv "$2/$name" "$backup"
-            cp -rp "$f" "$2"
-            echo -e "Backup then overwrite $(blue $2/$name)"
-        else
-            cp -rp "$f" "$2"
-            echo -e "Add $(blue $2/$name)"
-        fi
-    done
-}
-
 # copy files from ~/.dotfiles/osx/user folder to ~
 # and backup already existing files to the backup folder
 copy_files ~/.dotfiles/osx/user ~ $backup
 
-# install a chrome extension. The installation process is manual (open the extension page on the chrome web store)
-# even if an automatic/silent process is possible and successfully tested. Why? Because:
-# - a locally installed crx will not benefit easily/automatically of the future updates
-# - if you manually uninstall an extension that had been installed silently, this extension is definitly blacklisted
-# http://developer.chrome.com/extensions/external_extensions.html#faq
-function chrome_extension() {
-    # abort function if chrome is not installed
-    [[ ! -d '/Applications/Google Chrome.app' ]] && return
-    [[ $# -ne 3 ]] && echo "Runtime error: chrome_extension require 3 arguments" && exit 1
-    # argument 1, the name to be displayed
-    # argument 2, the id of the extension, it also the directory name to check (if directory, it's installed)
-    # argument 3, the URL to open with chrome for launch manual installation
-    local name=$(blue "$1")
-    echo -n -e "Check $name chrome extension..."
-    if [[ ! -d ~/Library/Application\ Support/Google/Chrome/Default/Extensions/$2 ]]; then
-        notok
-        while true; do
-            echo -e -n "Install $name? [Yn]: "
-            read r
-            r=$(echo "$r" | tr '[A-Z]' '[a-z]')
-            case "$r" in
-                y|n) break ;;
-                 '') r='y' && break ;;
-            esac
-        done
 
-        [[ "$r" == 'y' ]] && browser $3
-    else
-        ok
-    fi
-}
+# install chrome and firefox extensions
 
 chrome_extension 'Adblock Plus'   'cfhdojbkjhnklbpkdaibdccddilifddb' \
                  'https://chrome.google.com/webstore/detail/empty-title/cfhdojbkjhnklbpkdaibdccddilifddb'
@@ -268,34 +324,6 @@ chrome_extension 'JSON Formatter' 'bcjindcccaagfpapjjmafapmmgkkhgoa' \
 chrome_extension 'LiveReload'     'jnihajbhpnppcggbcgedagnkighmdlei' \
                  'https://chrome.google.com/webstore/detail/livereload/jnihajbhpnppcggbcgedagnkighmdlei'
 
-# install a firefox extension. The installation process is manual, just like for the chrome process
-function firefox_extension() {
-    # abort function if firefox is not installed
-    [[ ! -d '/Applications/Firefox.app' ]] && return
-    [[ $# -ne 3 ]] && echo "Runtime error: firefox_extension require 3 arguments" && exit 1
-    # argument 1, the name to be displayed
-    # argument 2, the xpi filename to checked inside the extensions directory (if found, it's installed)
-    # argument 3, the URL to open with firefox for launch manual installation
-    local name=$(blue "$1")
-    echo -n -e "Check $name firefox extension..."
-    local profile="$(find ~/Library/Application\ Support/Firefox/Profiles -type d -depth 1 -name '*.default')"
-    if [[ ! "$profile" || ! -f "$profile/extensions/$2" ]]; then
-        notok
-        while true; do
-            echo -e -n "Install $name? [Yn]: "
-            read r
-            r=$(echo "$r" | tr '[A-Z]' '[a-z]')
-            case "$r" in
-                y|n) break ;;
-                 '') r='y' && break ;;
-            esac
-        done
-
-        [[ "$r" == 'y' ]] && open -a Firefox.app $3
-    else
-        ok
-    fi
-}
 
 firefox_extension 'Adblock Plus' '{d10d0bf8-f5b5-c8b4-a8b2-2b9879e08c5d}.xpi' \
                   'https://addons.mozilla.org/en-US/firefox/addon/adblock-plus/'
@@ -312,6 +340,7 @@ firefox_extension 'DownThemAll'  '{DDC359D1-844A-42a7-9AA1-88A850A938A8}.xpi' \
 
 firefox_extension 'LiveReload'   'livereload@livereload.com.xpi' \
                   'http://help.livereload.com/kb/general-use/browser-extensions'
+
 
 # removes some folders if stayed empty
 if [[ $(empty $backup) -eq 1 ]]; then
