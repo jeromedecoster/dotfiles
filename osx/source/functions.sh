@@ -158,23 +158,30 @@ EOF)
 
         # remove browsers extensions
         if [[ "$1" == '-e' || "$1" == '-a' ]]; then
-            local process
+            local process names ids xpis
             # uninstall chrome extensions
             if [[ -d '/Applications/Google Chrome.app' ]]; then
                 # chrome must be closed to unsintall extension, check if chrome is listed in active processes
                 process="$(ps -e | grep "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")"
                 # exclude this commandline call from the result
                 if [[ $(echo "$process" | grep -v -c "grep") -ne 0 ]]; then
-                    killall "Google Chrome" && sleep 1
+                    killall "Google Chrome"
                 fi
-                # uninstall Adblock Plus
-                open -a "Google Chrome" --args --uninstall-extension=cfhdojbkjhnklbpkdaibdccddilifddb && sleep 1
-                # uninstall PrettyPrint
-                open -a "Google Chrome" --args --uninstall-extension=nipdlgebaanapcphbcidpmmmkcecpkhg && sleep 1
-                # uninstall JSON Formatter
-                open -a "Google Chrome" --args --uninstall-extension=bcjindcccaagfpapjjmafapmmgkkhgoa && sleep 1
-                # uninstall LiveReload
-                open -a "Google Chrome" --args --uninstall-extension=jnihajbhpnppcggbcgedagnkighmdlei && sleep 1
+                
+                # uninstall the extensions in arrays
+                names=('Adblock Plus' PrettyPrint 'JSON Formatter' LiveReload)
+                ids=(cfhdojbkjhnklbpkdaibdccddilifddb nipdlgebaanapcphbcidpmmmkcecpkhg \
+                     bcjindcccaagfpapjjmafapmmgkkhgoa jnihajbhpnppcggbcgedagnkighmdlei)
+
+                for (( i=0; i<${#names[@]}; i=i+1 )); do
+                    if [[ -d ~/Library/Application\ Support/Google/Chrome/Default/Extensions/"${ids[i]}" ]]; then
+                        # waits 2 seconds to be sure chrome is closed
+                        sleep 2
+                        open -a "Google Chrome" --args --uninstall-extension="${ids[i]}"
+                        echo -e "Removed ${BLU}${names[i]}$RES chrome extension"
+                    fi
+                done
+                unset i
             fi
             # uninstall firefox extensions
             if [[ -d '/Applications/Firefox.app' ]]; then
@@ -194,16 +201,19 @@ EOF
                 fi
                 local profile="$(find ~/Library/Application\ Support/Firefox/Profiles -type d -depth 1 -name '*.default')"
                 if [[ "$profile" ]]; then
-                    # uninstall Adblock Plus
-                    rm -f "$profile/extensions/{d10d0bf8-f5b5-c8b4-a8b2-2b9879e08c5d}.xpi"
-                    # uninstall Firebug
-                    rm -f "$profile/extensions/firebug@software.joehewitt.com.xpi"
-                    # uninstall Net Export
-                    rm -f "$profile/extensions/netexport@getfirebug.com.xpi"
-                    # uninstall DownThemAll
-                    rm -f "$profile/extensions/{DDC359D1-844A-42a7-9AA1-88A850A938A8}.xpi"
-                    # uninstall LiveReload
-                    rm -f "$profile/extensions/livereload@livereload.com.xpi"
+
+                    # uninstall the extensions in arrays
+                    names=('Adblock Plus' Firebug 'Net Export' DownThemAll LiveReload)
+                    xpis=('{d10d0bf8-f5b5-c8b4-a8b2-2b9879e08c5d}.xpi' 'firebug@software.joehewitt.com.xpi' \
+                          'netexport@getfirebug.com.xpi' '{DDC359D1-844A-42a7-9AA1-88A850A938A8}.xpi' \
+                          'livereload@livereload.com.xpi')
+                    
+                    for (( i=0; i<${#names[@]}; i=i+1 )); do
+                        if [[ -f "$profile/extensions/${xpis[i]}" ]]; then
+                            rm -f "$profile/extensions/${xpis[i]}"
+                            echo -e "Removed ${BLU}${names[i]}$RES firefox extension"
+                        fi
+                    done
                 fi
             fi
         fi
@@ -214,8 +224,8 @@ EOF
     else
         # write the usage message in the stderr and exit 1
         local msg=$(cat <<EOF
-usage: undot [-abdiu]       # requires one option selected
-option: -a remove all
+usage: undot [-abdeiu]       # requires one option selected
+option: -a remove all except the browser extensions
         -b remove homebrew and formulas
         -d remove ~/.dotfiles directory
         -e remove browsers extensions
