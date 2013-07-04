@@ -232,7 +232,6 @@ copy_files ~/.dotfiles/osx/user ~ $backup
 # - a locally installed crx will not benefit easily/automatically of the future updates
 # - if you manually uninstall an extension that had been installed silently, this extension is definitly blacklisted
 # http://developer.chrome.com/extensions/external_extensions.html#faq
-# please note there is no safe and simple ways to unsintall an extension, you need to do it manually
 function chrome_extension() {
     # abort function if chrome is not installed
     [[ ! -d '/Applications/Google Chrome.app' ]] && return
@@ -270,7 +269,6 @@ chrome_extension 'LiveReload'     'jnihajbhpnppcggbcgedagnkighmdlei' \
                  'https://chrome.google.com/webstore/detail/livereload/jnihajbhpnppcggbcgedagnkighmdlei'
 
 # install a firefox extension. The installation process is manual, just like for the chrome process
-# please note the unsintall is also manual
 function firefox_extension() {
     # abort function if firefox is not installed
     [[ ! -d '/Applications/Firefox.app' ]] && return
@@ -305,11 +303,10 @@ firefox_extension 'Adblock Plus' '{d10d0bf8-f5b5-c8b4-a8b2-2b9879e08c5d}.xpi' \
 firefox_extension 'Firebug'      'firebug@software.joehewitt.com.xpi' \
                   'https://addons.mozilla.org/en-US/firefox/addon/firebug/'
 
-# need to relaunch Firefox
+# the next extensions require to restart Firefox
 firefox_extension 'Net Export'   'netexport@getfirebug.com.xpi' \
                   'https://getfirebug.com/releases/netexport/'
 
-# need to relaunch Firefox
 firefox_extension 'DownThemAll'  '{DDC359D1-844A-42a7-9AA1-88A850A938A8}.xpi' \
                   'https://addons.mozilla.org/en-US/firefox/addon/downthemall/'
 

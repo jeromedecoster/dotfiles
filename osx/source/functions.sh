@@ -100,7 +100,11 @@ function prompt() {
 function undot() {
     local usage
     [[ $# -ne 1 ]] && usage=1
-    [[ "$1" != '-a' && "$1" != '-b' && "$1" != '-d' && "$1" != '-i' && "$1" != '-u' ]] && usage=1
+    case "$1" in
+        -a|-b|-d|-e|-i|-u) ;;
+                        *) usage=1 ;;
+    esac
+    
     if [[ "$usage" -ne 1 ]]; then
         local BLU="\033[0;34m"
         local RES="\033[0m"
@@ -152,6 +156,58 @@ EOF)
             echo -e "Removed $BLU~/.dotfiles$RES"
         fi
 
+        # remove browsers extensions
+        if [[ "$1" == '-e' || "$1" == '-a' ]]; then
+            local process
+            # uninstall chrome extensions
+            if [[ -d '/Applications/Google Chrome.app' ]]; then
+                # chrome must be closed to unsintall extension, check if chrome is listed in active processes
+                process="$(ps -e | grep "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")"
+                # exclude this commandline call from the result
+                if [[ $(echo "$process" | grep -v -c "grep") -ne 0 ]]; then
+                    killall "Google Chrome" && sleep 1
+                fi
+                # uninstall Adblock Plus
+                open -a "Google Chrome" --args --uninstall-extension=cfhdojbkjhnklbpkdaibdccddilifddb && sleep 1
+                # uninstall PrettyPrint
+                open -a "Google Chrome" --args --uninstall-extension=nipdlgebaanapcphbcidpmmmkcecpkhg && sleep 1
+                # uninstall JSON Formatter
+                open -a "Google Chrome" --args --uninstall-extension=bcjindcccaagfpapjjmafapmmgkkhgoa && sleep 1
+                # uninstall LiveReload
+                open -a "Google Chrome" --args --uninstall-extension=jnihajbhpnppcggbcgedagnkighmdlei && sleep 1
+            fi
+            # uninstall firefox extensions
+            if [[ -d '/Applications/Firefox.app' ]]; then
+                # firefox must be closed to unsintall extension, check if firefox is listed in active processes
+                process="$(ps -e | grep "/Applications/Firefox.app/Contents/MacOS/firefox")"
+                # exclude this commandline call from the result
+                if [[ $(echo "$process" | grep -v -c "grep") -ne 0 ]]; then
+                    # we can't use the killall way to close firefox. It works, but the next time you will
+                    # launch firefox it will display the alert page 'do you want to restore the previous tabs?'
+                    # there is also a strange applescript problem: if we want check if firefox is already running
+                    # or not, all the possible/usual ways to test it will not works because each test starts firefox
+                    # if it is currently closed. So we need to check it with 'ps -e'
+                    arch -i386 osascript <<EOF
+        tell application "Firefox" to quit
+        delay 1
+EOF
+                fi
+                local profile="$(find ~/Library/Application\ Support/Firefox/Profiles -type d -depth 1 -name '*.default')"
+                if [[ "$profile" ]]; then
+                    # uninstall Adblock Plus
+                    rm -f "$profile/extensions/{d10d0bf8-f5b5-c8b4-a8b2-2b9879e08c5d}.xpi"
+                    # uninstall Firebug
+                    rm -f "$profile/extensions/firebug@software.joehewitt.com.xpi"
+                    # uninstall Net Export
+                    rm -f "$profile/extensions/netexport@getfirebug.com.xpi"
+                    # uninstall DownThemAll
+                    rm -f "$profile/extensions/{DDC359D1-844A-42a7-9AA1-88A850A938A8}.xpi"
+                    # uninstall LiveReload
+                    rm -f "$profile/extensions/livereload@livereload.com.xpi"
+                fi
+            fi
+        fi
+
         if [[ "$1" == '-i' ]]; then
             bash -c "$(curl -fsSL raw.github.com/jeromedecoster/dotfiles/master/osx/install)" && source ~/.bash_profile
         fi
@@ -162,6 +218,7 @@ usage: undot [-abdiu]       # requires one option selected
 option: -a remove all
         -b remove homebrew and formulas
         -d remove ~/.dotfiles directory
+        -e remove browsers extensions
         -i launch install script
         -u remove user files
 EOF)
