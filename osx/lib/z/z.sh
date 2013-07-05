@@ -40,6 +40,12 @@ _z() {
     # bail if we don't own ~/.z (we're another user but our ENV is still set)
     [ -f "$datafile" -a ! -O "$datafile" ] && return
 
+    # DOTFILES ADDED creates the cache file if it does not exist
+    if [[ ! -f "$datafile" ]]; then
+        mkdir -p "$(dirname "$datafile")"
+        echo -n '' > "$datafile"
+    fi
+
     # add entries
     if [ "$1" = "--add" ]; then
         shift
@@ -53,7 +59,6 @@ _z() {
             [ "$*" = "$exclude" ] && return
         done
 
-        # echo "etoile:$#:"
         [[ $# -ne 1 ]] && return     # DOTFILES ADDED accept only 1 argument
         [[ ! -d "$1" ]] && return    # DOTFILES ADDED accept only directory
         local path=$(echo "$1" | sed 's/[\/]*$//g') # DOTFILES ADDED remove trailing slashs

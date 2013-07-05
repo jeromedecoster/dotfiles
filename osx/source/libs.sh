@@ -19,11 +19,6 @@ source ~/.dotfiles/osx/lib/z/z.sh
 
 # add the current folder to the z cache or increase his rank if already here
 function za() {
-    local data="${_Z_DATA:-$HOME/.z}"
-    if [[ ! -f "$data" ]]; then
-        mkdir -p "$(dirname "$data")"
-        echo -n '' > "$data"
-    fi
     z --add "$PWD"
 }
 
