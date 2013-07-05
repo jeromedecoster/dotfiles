@@ -202,7 +202,9 @@ function firefox_extension() {
 }
 
 
+# 
 # check Git
+# 
 echo -n "Check $(blue git)..."
 if [[ ! "$(type -p git)" ]]; then
     notok
@@ -213,7 +215,10 @@ if [[ ! "$(type -p git)" ]]; then
 fi
 ok
 
+
+# 
 # check Ruby
+# 
 echo -n "Check $(blue ruby)..."
 if [[ ! "$(type -p ruby)" || $(ruby -e "puts RUBY_VERSION >= '1.9.3'") == 'false' ]]; then
     notok
@@ -225,8 +230,9 @@ fi
 ok
 
 
-# Homebrew part...
-
+# 
+# Homebrew part
+# 
 brew_path=$(type -P brew)
 if [[ ! "$brew_path" ]]; then
     # homebrew is cool but doesn't have an online repository like npm or rubygem
@@ -272,10 +278,10 @@ install_formula tree
 install_formula man2html
 install_formula phantomjs
 
-# ...the end of the Homebrew part
 
-
+# 
 # update existing ~/.dotfiles repositoy or clone it first the first time
+# 
 if [[ -e ~/.dotfiles ]]; then
     cur=$(pwd)
     echo -n "Update $(blue ~/.dotfiles) repository..."
@@ -313,8 +319,9 @@ mkdir -p "$backup"
 copy_files ~/.dotfiles/osx/user ~ $backup
 
 
+# 
 # install chrome and firefox extensions
-
+# 
 chrome_extension 'Adblock Plus'   'cfhdojbkjhnklbpkdaibdccddilifddb' \
                  'https://chrome.google.com/webstore/detail/empty-title/cfhdojbkjhnklbpkdaibdccddilifddb'
 chrome_extension 'PrettyPrint'    'nipdlgebaanapcphbcidpmmmkcecpkhg' \
@@ -342,7 +349,39 @@ firefox_extension 'LiveReload'   'livereload@livereload.com.xpi' \
                   'http://help.livereload.com/kb/general-use/browser-extensions'
 
 
+# 
+# check user permissions on /usr/local/lib/dtrace
+# 
+echo -n "Check $(blue /usr/local/lib/dtrace) permissions..."
+# the folder does not exist, simply create it
+if [[ ! -d /usr/local/lib/dtrace ]]; then
+    mkdir -p /usr/local/lib/dtrace
+    ok
+else
+    # if we are not the owner of this folder, prompt to chown it
+    if [[ "$(stat -f %u /usr/local/lib/dtrace)" != "$(id -u)" ]]; then
+        notok
+        echo "You are not the owner of the directory $(blue /usr/local/lib/dtrace)"
+        echo "This may result some annoying $(red 'permissions denied') problems with nodejs"
+        while true; do
+            echo -n "Do you want to $(blue 'sudo chown') this directory? [Yn]: "
+            read r
+            r=$(echo "$r" | tr '[A-Z]' '[a-z]')
+            case "$r" in
+                y|n) break ;;
+                 '') r='y' && break ;;
+            esac
+        done
+        [[ "$r" == 'y' ]] && sudo chown `whoami` /usr/local/lib/dtrace
+    else
+        ok
+    fi
+fi
+
+
+# 
 # removes some folders if stayed empty
+# 
 if [[ $(empty $backup) -eq 1 ]]; then
     echo -e "Delete empty folder $(blue "$backup")" && rm -d $backup
 fi
