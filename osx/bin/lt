@@ -9,9 +9,10 @@
 # all empty folders are displayed in dark yellow, with a trailing '/'
 # all empty files (0 ko) are displayed in dark yellow
 # all executable text files (chmoded as executable for the current user, not binary files,
-#   and starting with a shebang '#!') are colored in red
-# all windows executable '.bat' and '.cmd' are colored in red
-# all symbolic link files are displayed in green, followed by the targeted file
+#   and starting with a shebang '#!') are colored in green
+# all windows executable '.bat' and '.cmd' are colored in green
+# all others exectuable files, that are not eligible to be colored in green, are colored in red
+# all symbolic link files are displayed in magenta, followed by the targeted file
 #   if the targeted file exists, the path is display in black, otherwise it's dark yellow
 # all other files are displayed in black
 
@@ -28,14 +29,33 @@ if tree.size == 0 or not File.executable? tree
     exit_msg 'tree command not found'
 end
 
+BLU="\033[0;34m"
+GRE="\033[0;32m"
+MAG="\033[0;35m"
+RED="\033[0;31m"
+YEL="\033[0;33m"
+RES="\033[0m"
+
 # ignored files
 ignore = %w{ .DS_Store .Spotlight-V100 .Trashes desktop.ini Thumbs.db .git .svn }
+
+# max display depth of the directory tree
+level = ''
 
 parser = OptionParser.new do |opts|
     # add more ignoted files
     opts.on( '-I=pat' ) do |pat|
         ignore.concat pat.split('|')
     end
+    opts.on( '-1' ) { level = '-L 1' }
+    opts.on( '-2' ) { level = '-L 2' }
+    opts.on( '-3' ) { level = '-L 3' }
+    opts.on( '-4' ) { level = '-L 4' }
+    opts.on( '-5' ) { level = '-L 5' }
+    opts.on( '-6' ) { level = '-L 6' }
+    opts.on( '-7' ) { level = '-L 7' }
+    opts.on( '-8' ) { level = '-L 8' }
+    opts.on( '-9' ) { level = '-L 9' }
     # overwrite the standard help message
     opts.on( '-h', '--help' ) do
         file = File.basename __FILE__
@@ -63,9 +83,9 @@ if ARGV.size > 0
 end
 
 # absolute path of the folder, will be used to check the symbolic links targets
-abs_folder = File.expand_path folder
+abs_folder = File.expand_path(folder) + "/"
 
-arr = `tree --dirsfirst --noreport -apfN -I '#{ignore.join('|')}' #{folder}`.strip.split "\n"
+arr = `tree #{level} --dirsfirst --noreport -apfN -I '#{ignore.join('|')}' #{folder}`.strip.split "\n"
 arr.each do |e|
     # capture:
     # - folder graph
@@ -96,8 +116,8 @@ arr.each do |e|
             
             # empty folders are colored in dark yellow
             # the others in blue 
-            col  = count == 0 ? 33 : 34
-            name = "\033[0;#{col}m#{name}/\033[0m"
+            col  = count == 0 ? YEL : BLU
+            name = "#{col}#{name}/#{RES}"
         
         # the file is an executable
         elsif m.captures[2] == 'x'
@@ -106,32 +126,41 @@ arr.each do |e|
             if m.captures[1] == 'l'
                 
                 # symbolic link has special display
-                # the name is colored in green
+                # the name is colored in magenta
                 # then followed by ' -> ' then the targeted path
 
                 # the path must me captured again
                 mm = expanded.match /^(.*) \-> (.*)$/
                 if not mm.nil? and mm.captures.size == 2
-                    # the target of the symbolic link
-                    target = abs_folder + mm.captures[1][1..-1]
+                    # resolve the target of the symbolic link
+                    link = mm.captures[1]
+                    # it's simple if it's an absolute path
+                    if link[0] == '/'
+                        target = link
+                    # otherwise we need to resolve the relative path
+                    else
+                        target = File.expand_path(abs_folder + link)
+                    end
                     # if the symbolic link target an existing file, the target path is written in black
                     if File.exist? target
-                        name = "\033[0;32m#{File.basename mm.captures[0]}\033[0m -> #{mm.captures[1]}"
+                        name = "#{MAG}#{File.basename mm.captures[0]}#{RES} -> #{mm.captures[1]}"
                     # otherwise the target path is written in dark yellow
                     else
-                        name = "\033[0;32m#{File.basename mm.captures[0]}\033[0m -> \033[0;33m#{mm.captures[1]}\033[0m"
+                        name = "#{MAG}#{File.basename mm.captures[0]}#{RES} -> #{YEL}#{mm.captures[1]}#{RES}"
                     end
                 else
                     # fallback if there is a problem with a regex
-                    # just show the name in green
+                    # just show the name in magenta
                     # brute force name extraction from the link
                     link    = m.captures[3]
                     extract = File.basename link[0..link.index(' -> ')-1]
-                    name    = "\033[0;32m#{extract}\033[0m"
+                    name    = "#{MAG}#{extract}#{RES}"
                 end
 
             # it's not a symbolic link
             else
+                shebang = false
+
                 # check if the file is not a real binary file (means an editable
                 # text file chmoded as executable)
                 # the logic was taken from the ruby gem 'ptools'
@@ -141,24 +170,28 @@ arr.each do |e|
                 if not (((s.size - s.grep(" ".."~").size) / s.size.to_f) > 0.30)
                     # now check is the file has a size (> 0 ko)
                     # and if the 2 first charrs of the first line are a shebang
-                    # if yes, this text file is an executable. His name is displayed in red
+                    # if yes, this text file is an executable. His name is displayed in green
                     if File.size?(expanded) and File.open(expanded){|f| f.readline}[0..1] == '#!'
-                        name = "\033[0;31m#{name}\033[0m"
+                        name = "#{GRE}#{name}#{RES}"
+                        shebang = true
                     end
                 end
+
+                # if the executable is not colored in green (executable text file with #!) it is red
+                name = "#{RED}#{name}#{RES}" if not shebang
             end
 
         # it's not a directory or an executalbe file
         else
             # file without size (0 ko) are colored in dark yellow
             if not File.size? expanded
-                name = "\033[0;33m#{name}\033[0m"
+                name = "#{YEL}#{name}#{RES}"
             else
                 # non-executable files, but known as windows
-                # executable files are colored in red
+                # executable files are colored in green
                 ext = p.extname.downcase
                 if ext == '.cmd' or ext == '.bat'
-                    name = "\033[0;31m#{name}\033[0m"
+                    name = "#{GRE}#{name}#{RES}"
                 end
             end
         end
