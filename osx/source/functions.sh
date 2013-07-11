@@ -101,8 +101,8 @@ function undot() {
     local usage
     [[ $# -ne 1 ]] && usage=1
     case "$1" in
-        -a|-b|-d|-e|-i|-u) ;;
-                        *) usage=1 ;;
+        -a|-b|-d|-e|-i|-n|-u) ;;
+                           *) usage=1 ;;
     esac
     
     if [[ "$usage" -ne 1 ]]; then
@@ -110,7 +110,7 @@ function undot() {
         local RES="\033[0m"
 
         # remove the user files, leaves a minimum content
-        if [[ "$1" == '-u' || "$1" == '-a' ]]; then
+        if [[ "$1" = '-u' || "$1" = '-a' ]]; then
             rm -f ~/.inputrc
             local cnt=$(cat <<EOF
 [user]
@@ -129,7 +129,7 @@ EOF)
         fi
 
         # remove homebrew and formulas
-        if [[ "$1" == '-b' || "$1" == '-a' ]]; then
+        if [[ "$1" = '-b' || "$1" = '-a' ]]; then
             local brew_path=$(type -P brew)
             if [[ "$brew_path" && -x "$brew_path" ]]; then
                 brew uninstall tree &>/dev/null
@@ -151,13 +151,13 @@ EOF)
         fi
 
         # remove ~/.dotfiles directory
-        if [[ "$1" == '-d' || "$1" == '-a' ]]; then
+        if [[ "$1" = '-d' || "$1" = '-a' ]]; then
             rm -rf ~/.dotfiles
             echo -e "Removed $BLU~/.dotfiles$RES"
         fi
 
         # remove browsers extensions
-        if [[ "$1" == '-e' || "$1" == '-a' ]]; then
+        if [[ "$1" = '-e' || "$1" = '-a' ]]; then
             local process names ids xpis
             # uninstall chrome extensions
             if [[ -d '/Applications/Google Chrome.app' ]]; then
@@ -218,7 +218,102 @@ EOF
             fi
         fi
 
-        if [[ "$1" == '-i' ]]; then
+        # remove nodejs
+        if [[ "$1" = '-n' || "$1" = '-a' ]]; then
+            function owner() {
+                [[ "$(stat -f %u $1)" != "$(id -u)" ]] && echo 1
+            }
+            function prompt_chown() {
+                local BLU="\033[0;34m"
+                local RED="\033[0;31m"
+                local RES="\033[0m"
+                echo -e "You are not the owner of the directory ${BLU}$1$RES"
+                while true; do
+                    echo -e -n "Do you want to ${RED}sudo chown$RES this directory to remove it? [Yn]: "
+                    read r
+                    r=$(echo "$r" | tr '[A-Z]' '[a-z]')
+                    case "$r" in
+                        y|n) selected="$r"; break ;;
+                         '') selected='y';  break ;;
+                    esac
+                done
+            }
+
+            # special folders, not owned by the user
+
+            local dir=/usr/local/lib/node_modules
+            if [[ -d $dir ]]; then
+                if [[ `owner $dir` -eq 1 ]]; then
+                    # check if a sudo is needed to chown. if admin or
+                    # already sudoed, no need to prompt the user
+                    sudo -n true 2>/dev/null
+                    # if a sudo is required, the command above will exit 1 
+                    if [[ $? -ne 0 ]]; then
+                        prompt_chown $dir
+                        # prompt_chown set the var $selected to 'y' if the user accepct the sudo
+                        if [[ "$selected" = 'y' ]]; then
+                            # recursive chown required
+                            sudo chown -R `whoami` $dir
+                            rm -rf $dir
+                        fi
+                        unset selected
+                    # sudo is not required, so it is not needed to prompt the user
+                    # but chown must be used with sudo, so we write it below, but not password will be asked
+                    else
+                        # recursive chown required
+                        sudo chown -R `whoami` $dir
+                        rm -rf $dir
+                    fi
+                # the user is the owner, just remove it
+                else
+                    rm -rf $dir
+                fi
+            fi
+
+            local dir=/usr/local/lib/dtrace
+            local file=$dir/node.d
+            if [[ -d $dir ]]; then
+                if [[ `owner $dir` -eq 1 ]]; then
+                    # check if a sudo is needed to chown. if admin or
+                    # already sudoed, no need to prompt the user
+                    sudo -n true 2>/dev/null
+                    # if a sudo is required, the command above will exit 1 
+                    if [[ $? -ne 0 ]]; then
+                        prompt_chown $dir
+                        # prompt_chown set the var $selected to 'y' if the user accepct the sudo
+                        if [[ "$selected" = 'y' ]]; then
+                            sudo chown `whoami` $dir
+                            rm -rf $file
+                        fi
+                        unset selected
+                    # sudo is not required, so it is not needed to prompt the user
+                    # but chown must be used with sudo, so we write it below, but not password will be asked
+                    else
+                        sudo chown `whoami` $dir
+                        rm -rf $file
+                    fi
+                # the user is the owner, just remove it
+                else
+                    rm -rf $file
+                fi
+            fi
+            unset owner
+            unset prompt_chown
+
+            rm -f /usr/local/bin/n
+            rm -rf /usr/local/n
+            rm -rf ~/.nave
+
+            rm -f /usr/local/bin/node
+            rm -f /usr/local/bin/node-waf
+            rm -f /usr/local/bin/npm
+            rm -rf /usr/local/lib/node
+
+            rm -rf /usr/local/include/node
+            rm -rf /usr/local/include/node_modules
+        fi
+
+        if [[ "$1" = '-i' ]]; then
             bash -c "$(curl -fsSL raw.github.com/jeromedecoster/dotfiles/master/osx/install)" && source ~/.bash_profile
         fi
     else
@@ -230,6 +325,7 @@ option: -a remove all except the browser extensions
         -d remove ~/.dotfiles directory
         -e remove browsers extensions
         -i launch install script
+        -n remove nodejs
         -u remove user files
 EOF)
         $(echo -e "$msg" >&2; exit 1)
