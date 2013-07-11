@@ -1,8 +1,5 @@
 # z
 
-# allow man to find the z manual ~/.dotfiles/osx/lib/z/man/man1/z.1
-export MANPATH="$HOME/.dotfiles/osx/lib/z/man:$MANPATH"
-
 # override the default z cache location ~/.z
 _Z_DATA=~/.dotfiles/.cache/.z
 

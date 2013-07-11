@@ -233,50 +233,50 @@ ok
 # 
 # Homebrew part
 # 
-brew_path=$(type -P brew)
-if [[ ! "$brew_path" ]]; then
-    # homebrew is cool but doesn't have an online repository like npm or rubygem
-    # so, all formula (2300+) are downloaded locally via the git repo
-    # and you all history of each formula. Not really cool...
-    # so the installation process is really slow
-    echo "Install $(blue homebrew) (please wait, it's slow)"
+# brew_path=$(type -P brew)
+# if [[ ! "$brew_path" ]]; then
+#     # homebrew is cool but doesn't have an online repository like npm or rubygem
+#     # so, all formula (2300+) are downloaded locally via the git repo
+#     # and you all history of each formula. Not really cool...
+#     # so the installation process is really slow
+#     echo "Install $(blue homebrew) (please wait, it's slow)"
 
-    # automatic install (without asking the user keydown)
-    # is only possible with the addition of 'true |'
-    # true | ruby -e "$(curl -fsSL https://raw.github.com/mxcl/homebrew/go)"
+#     # automatic install (without asking the user keydown)
+#     # is only possible with the addition of 'true |'
+#     # true | ruby -e "$(curl -fsSL https://raw.github.com/mxcl/homebrew/go)"
     
-    # personnal install
-    ruby -e "$(curl -fsSL raw.github.com/jeromedecoster/dotfiles/master/osx/homebrew)"
+#     # personnal install
+#     ruby -e "$(curl -fsSL raw.github.com/jeromedecoster/dotfiles/master/osx/homebrew)"
 
-# is really here, it's an executable?
-# this test is needed after an uninstall
-elif [[ -x "$brew_path" ]]; then
-    echo -n "Update $(blue homebrew)..."
-    # brew update: fetch the newest version of Homebrew
-    # and all formulae from GitHub using git
-    brew update 1>/dev/null
-    if [[ $? -ne 0 ]]; then
-        notok
-        echo 'Failed: Homebrew update return an error'
-    else
-        ok
-    fi
+# # is really here, it's an executable?
+# # this test is needed after an uninstall
+# elif [[ -x "$brew_path" ]]; then
+#     echo -n "Update $(blue homebrew)..."
+#     # brew update: fetch the newest version of Homebrew
+#     # and all formulae from GitHub using git
+#     brew update 1>/dev/null
+#     if [[ $? -ne 0 ]]; then
+#         notok
+#         echo 'Failed: Homebrew update return an error'
+#     else
+#         ok
+#     fi
 
-    echo -n "Upgrade $(blue homebrew)..."
-    # brew upgrade: Upgrade outdated, unpinned brews
-    brew upgrade 1>/dev/null
-    if [[ $? -ne 0 ]]; then
-        notok
-        echo 'Failed: Homebrew upgrade return an error'
-    else
-        ok
-    fi
-fi
+#     echo -n "Upgrade $(blue homebrew)..."
+#     # brew upgrade: Upgrade outdated, unpinned brews
+#     brew upgrade 1>/dev/null
+#     if [[ $? -ne 0 ]]; then
+#         notok
+#         echo 'Failed: Homebrew upgrade return an error'
+#     else
+#         ok
+#     fi
+# fi
 
 # Homebrew is installed... now install some forumlas
-install_formula tree
-install_formula man2html
-install_formula phantomjs
+# install_formula tree
+# install_formula man2html
+# install_formula phantomjs
 
 
 # 
