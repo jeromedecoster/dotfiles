@@ -14,84 +14,77 @@ blue() {
   printf "\033[0;34m$1\033[0m" $1
 }
 ok() {
-  printf "%s" `green OK`
+  echo `green OK`
 }
 notok() {
-  printf "%s" `red KO`
+  echo `red KO`
 }
 
-# write in blue has a special behavior, will try to reduce path
-# from /Users/username/.dotfiles to ~/.dotfiles
-# function blue()  {
-#     if [[ $# -eq 1 ]]; then
-#         if [[ ! -e "$1" ]]; then
-#             echo -e "\033[0;34m$1\033[0m"
-#         else
-#             # if the path is in the user folder ($HOME), reduce the output
-#             # message using the shortcut '~'
-#             # from /Users/username/.dotfiles to ~/.dotfiles
-#             if [[ $HOME == ${1:0:${#HOME}} ]]; then
-#                 echo -e "\033[0;34m~${1:${#HOME}}\033[0m"
-#             # otherwise, simple output
-#             else
-#                 echo -e "\033[0;34m$1\033[0m"
-#             fi
-#         fi
-#     fi
-# }
-
-# check if a folder is empty
-# if yes, return 1, otherwise return 0
-function empty() {
-    [[ $# -ne 1 ]] && echo "Runtime error: empty require 1 argument" && exit 1
-    [[ ! -d $1 ]]  && echo "Runtime error: empty require a folder path" && exit 1
-    [[ $(find $1 -depth 1 2>/dev/null | grep . -c) -eq 0 ]] && echo 1 || echo 0
+#
+# Try to reduce the path from /Users/username/.dotfiles to ~/.dotfiles
+#
+reduce_path() {
+  # if the path is in the user directory ($HOME), reduce it using the shortcut '~'
+  if [[ $HOME == ${1:0:${#HOME}} ]]; then
+    echo ~${1:${#HOME}}
+  # otherwise, simple output
+  else
+    echo $1
+  fi
 }
 
-# open an url with chrome if installed, otherwise with firefox, otherwise with safari
+#
+# Check if a directory is empty. Return 1 if empty, otherwise return nothing
+#
+function empty_directory() {
+  [[ `find $1 -depth 1 2>/dev/null | grep . -c` -eq 0 ]] && echo 1
+}
+
+#
+# Open an url with chrome if installed, otherwise with firefox, otherwise with safari
+#
 function browser() {
-    local url=$1
-    [[ ${url:0:4} != 'http' ]] && url="http://$url"
+  local url=$1
+  [[ ${url:0:4} != 'http' ]] && url="http://$url"
 
-    # if Chrome, browse with it
-    if [[ -d '/Applications/Google Chrome.app' ]]; then
-        arch -i386 osascript <<EOF
-            set launched to true
-            if application "Google Chrome" is not running then
-                set launched to false
-                tell application "Google Chrome" to activate
-                delay 0.5
+  # if Chrome, browse with it
+  if [[ -d '/Applications/Google Chrome.app' ]]; then
+    arch -i386 osascript <<EOF
+      set launched to true
+      if application "Google Chrome" is not running then
+        set launched to false
+        tell application "Google Chrome" to activate
+        delay 0.5
+      end if
+      on curtab(pUrl)
+        tell application "Google Chrome" to set URL of active tab of front window to pUrl
+      end curtab
+      tell application "Google Chrome"
+        if launched is false then
+          curtab("$url") of me
+        else
+          if (count of properties of windows) is 0 then
+            make new window
+            curtab("$url") of me
+          else
+            if URL of active tab of front window is "chrome://newtab/" then
+              curtab("$url") of me
+            else
+              tell front window to make new tab
+              curtab("$url") of me
             end if
-            on curtab(pUrl)
-                tell application "Google Chrome" to set URL of active tab of front window to pUrl
-            end curtab
-            tell application "Google Chrome"
-                if launched is false then
-                    curtab("$url") of me
-                else
-                    if (count of properties of windows) is 0 then
-                        make new window
-                        curtab("$url") of me
-                    else
-                        if URL of active tab of front window is "chrome://newtab/" then
-                            curtab("$url") of me
-                        else
-                            tell front window to make new tab
-                            curtab("$url") of me
-                        end if
-                    end if
-                end if
-            end tell
+          end if
+        end if
+      end tell
 EOF
-    # if Firefox, browse with it
-    elif [[ -d '/Applications/Firefox.app' ]]; then
-        open -a Firefox.app $url
-    # otherwise fallback to Safari
-    elif [[ -d '/Applications/Safari.app' ]]; then
-        open -a Safari.app $url
-    fi
+  # if Firefox, browse with it
+  elif [[ -d '/Applications/Firefox.app' ]]; then
+    open -a Firefox.app $url
+  # otherwise fallback to Safari
+  elif [[ -d '/Applications/Safari.app' ]]; then
+    open -a Safari.app $url
+  fi
 }
-
 
 # copy files from a folder to a folder and backup all already existing files
 # to another folder
@@ -107,13 +100,14 @@ function copy_files() {
         [[ ! -r "$f" ]] && continue
         # special files, skip
         [[ "$name" == '.' || "$name" == '..' || "$name" == '.DS_Store' ]] && continue
+        reduced_path=`reduce_path $2/$name`
         if [[ -e $2/$name ]]; then
             mv "$2/$name" "$backup"
             cp -rp "$f" "$2"
-            echo -e "Backup then overwrite $(blue $2/$name)"
+            echo -e "Backup then overwrite $(blue $reduced_path)"
         else
             cp -rp "$f" "$2"
-            echo -e "Add $(blue $2/$name)"
+            echo -e "Add $(blue $reduced_path)"
         fi
     done
 }
@@ -200,99 +194,137 @@ function firefox_extension() {
 }
 
 #
-# check Git
+# Check Git
 #
-echo -n "Check $(blue git)..."
-if [[ ! "$(type -p git)" ]]; then
+check_git() {
+  printf "check `blue git`..."
+  if [[ -z `type -p git` ]]; then
     notok
     echo 'Aborted: Git must be installed'
     sleep 1
     browser 'http://git-scm.com/download/mac'
     exit 1
-fi
-ok
-
+  fi
+  ok
+}
 
 #
-# check Ruby
+# Check Ruby
 #
-echo -n "Check $(blue ruby)..."
-if [[ ! "$(type -p ruby)" || $(ruby -e "puts RUBY_VERSION >= '1.9.3'") == 'false' ]]; then
+check_ruby() {
+  printf "check `blue ruby`..."
+  if [[ -z `type -p ruby` || `ruby -e "puts RUBY_VERSION >= '1.9.3'"` == 'false' ]]; then
     notok
     echo 'Aborted: Ruby must be installed. Version 1.9.3 minimum'
     sleep 1
     browser 'https://rvm.io/'
     exit 1
-fi
-ok
-
+  fi
+  ok
+}
 
 #
-# update existing ~/.dotfiles repositoy or clone it first the first time
+# Update existing ~/.dotfiles repositoy or clone it first the first time
 #
-if [[ -e ~/.dotfiles ]]; then
-    cur=$(pwd)
-    echo -n "Update $(blue ~/.dotfiles) repository..."
+check_repository() {
+  if test -e ~/.dotfiles; then
+    local cwd="$(pwd)"
+    echo -n "update `blue "~/.dotfiles"` repository..."
     cd ~/.dotfiles
-    # capture error
-    error=$(git pull --quiet 2>&1)
-    exit_code=$?
-    cd "$cur"
-    if [[ $exit_code -ne 0 ]]; then
-        notok
-        echo $error
-        echo 'Aborted: Error with git pull'
-        exit 1
-    fi
-    ok
-else
-    echo -n "Install $(blue ~/.dotfiles) repository..."
-    # capture error
-    error=$(git clone --quiet https://github.com/jeromedecoster/dotfiles.git ~/.dotfiles 2>&1)
+    # capture error in temp file
+    local tmp=`mktemp /tmp/git.XXXXX`
+    git pull --quiet 2>$tmp
     if [[ $? -ne 0 ]]; then
-        notok
-        echo $error
-        echo 'Aborted: Error with git clone'
-        exit 1
+      notok
+      # echo error and delete temp file
+      cat $tmp
+      rm -f $tmp
+      echo 'abort: Error with git pull'
+      exit 1
     fi
     ok
-fi
-
+    cd "$cwd"
+  else
+    echo -n "install `blue "~/.dotfiles"` repository..."
+    # capture error in temp file
+    local tmp=`mktemp /tmp/git.XXXXX`
+    git clone --quiet https://github.com/jeromedecoster/dotfiles.git ~/.dotfiles 2>$tmp
+    if [[ $? -ne 0 ]]; then
+      notok
+      # echo error and delete temp file
+      cat $tmp
+      rm -f $tmp
+      echo 'abort: Error with git clone'
+      exit 1
+    fi
+    ok
+  fi
+}
 
 #
-# check Phantomjs
+# Update existing Phantomjs or prompt to install it. Abandons automatically after 7 seconds
 #
-echo -n "Check $(blue phantomjs)..."
-function phantomjs_url() {
+check_phantomjs() {
+  echo -n "check `blue phantomjs`..."
+
+  # inner functions
+  function url() {
     local formula=`curl -s https://raw.github.com/mxcl/homebrew/master/Library/Formula/phantomjs.rb`
     echo "$formula" \
-        | egrep ^[[:space:]]+url \
-        | sed 's/^.*http/http/' \
-        | sed 's/zip.*$/zip/'
-}
-function install_phantomjs() {
-    tmp=`mktemp -d /tmp/phantomjs.XXXXX`
-    curl -s -o $tmp/tmp.zip `phantomjs_url`
+      | egrep ^[[:space:]]+url \
+      | sed 's/^.*http/http/' \
+      | sed 's/zip.*$/zip/'
+  }
+  function online_version() {
+    echo `url | sed 's/^.*phantomjs-//' | sed 's/-.*$//'`
+  }
+  function install() {
+    local tmp=`mktemp -d /tmp/phantomjs.XXXXX`
+    curl -s -o $tmp/tmp.zip `url`
     unzip -q $tmp/tmp.zip "*bin/phantomjs" -d $tmp
-    src=`find $tmp -type f -name "*phantomjs"`
+    local src=`find $tmp -type f -name "*phantomjs"`
     cp $src ~/.dotfiles/osx/bin/
     rm -rf $tmp
-}
-if [[ ! "$(type -p phantomjs)" ]]; then
+    local version=`phantomjs --version`
+    echo "installed `blue "phantomjs $version"`"
+  }
+
+  # not installed
+  if [ -z `type -p phantomjs` ]; then
     notok
-    echo "Install $(blue phantomjs)"
-    install_phantomjs
-else
-    url=`phantomjs_url`
-    version=`echo $url | sed 's/^.*phantomjs-//' | sed 's/-.*$//'`
-    if [[ "$(phantomjs -v)" != "$version" ]]; then
-        notok
-        echo "Update $(blue phantomjs)"
-        install_phantomjs
+    while true; do
+      echo -n "install `blue phantomjs`? [yN]: "
+      read -t 7 r
+      # timeout return exitcode 1
+      [[ $? -eq 1 ]] && echo 'n' && r='n' && break
+      r=$(echo "$r" | tr '[A-Z]' '[a-z]')
+      case "$r" in
+        y|n) break ;;
+         '') r='n' && break ;;
+      esac
+    done
+    [[ "$r" == 'y' ]] && install
+
+  # already installed
+  else
+    local online=`online_version`
+    if [[ $online != `phantomjs --version` ]]; then
+      notok
+      echo "update `blue phantomjs` to $online"
+      install
     else
-        ok
+      ok
     fi
-fi
+  fi
+  unset -f url
+}
+
+
+check_git
+check_ruby
+check_repository
+check_phantomjs
+
 
 
 # create backup folder
@@ -367,9 +399,10 @@ fi
 #
 # removes some folders if stayed empty
 #
-if [[ $(empty $backup) -eq 1 ]]; then
-    echo -e "Delete empty folder $(blue "$backup")" && rm -d $backup
+if [[ "`empty_directory $backup`" ]]; then
+  reduced=`reduce_path "$backup"`
+  echo -e "Delete empty folder $(blue "$reduced")" && rm -d $backup
 fi
-if [[ $(empty ~/.dotfiles/.backup) -eq 1 ]]; then
-    echo -e "Delete empty folder $(blue "~/.dotfiles/.backup")" && rm -d ~/.dotfiles/.backup
+if [[ "$(empty_directory ~/.dotfiles/.backup)" ]]; then
+  echo -e "Delete empty folder $(blue "~/.dotfiles/.backup")" && rm -d ~/.dotfiles/.backup
 fi
