@@ -1,32 +1,44 @@
 #!/bin/bash
 [[ ! "$OSTYPE" =~ ^darwin ]] && echo "Aborted: this install script is only for OS X" && exit 1
 
-# write colored putput
-function green() { [[ $# -eq 1 ]] && echo -e "\033[0;32m$1\033[0m"; }
-function red()   { [[ $# -eq 1 ]] && echo -e "\033[0;31m$1\033[0m"; }
+#
+# Write colored output
+#
+green() {
+  printf "\033[0;32m%s\033[0m" $1
+}
+red() {
+  printf "\033[0;31m%s\033[0m" $1
+}
+blue() {
+  printf "\033[0;34m$1\033[0m" $1
+}
+ok() {
+  printf "%s" `green OK`
+}
+notok() {
+  printf "%s" `red KO`
+}
 
 # write in blue has a special behavior, will try to reduce path
 # from /Users/username/.dotfiles to ~/.dotfiles
-function blue()  {
-    if [[ $# -eq 1 ]]; then
-        if [[ ! -e "$1" ]]; then
-            echo -e "\033[0;34m$1\033[0m"
-        else
-            # if the path is in the user folder ($HOME), reduce the output
-            # message using the shortcut '~'
-            # from /Users/username/.dotfiles to ~/.dotfiles
-            if [[ $HOME == ${1:0:${#HOME}} ]]; then
-                echo -e "\033[0;34m~${1:${#HOME}}\033[0m"
-            # otherwise, simple output
-            else
-                echo -e "\033[0;34m$1\033[0m"
-            fi
-        fi
-    fi
-}
-
-function ok()    { echo -e "$(green OK)"; }
-function notok() { echo -e "$(red KO)"; }
+# function blue()  {
+#     if [[ $# -eq 1 ]]; then
+#         if [[ ! -e "$1" ]]; then
+#             echo -e "\033[0;34m$1\033[0m"
+#         else
+#             # if the path is in the user folder ($HOME), reduce the output
+#             # message using the shortcut '~'
+#             # from /Users/username/.dotfiles to ~/.dotfiles
+#             if [[ $HOME == ${1:0:${#HOME}} ]]; then
+#                 echo -e "\033[0;34m~${1:${#HOME}}\033[0m"
+#             # otherwise, simple output
+#             else
+#                 echo -e "\033[0;34m$1\033[0m"
+#             fi
+#         fi
+#     fi
+# }
 
 # check if a folder is empty
 # if yes, return 1, otherwise return 0
@@ -187,9 +199,9 @@ function firefox_extension() {
     fi
 }
 
-# 
+#
 # check Git
-# 
+#
 echo -n "Check $(blue git)..."
 if [[ ! "$(type -p git)" ]]; then
     notok
@@ -201,9 +213,9 @@ fi
 ok
 
 
-# 
+#
 # check Ruby
-# 
+#
 echo -n "Check $(blue ruby)..."
 if [[ ! "$(type -p ruby)" || $(ruby -e "puts RUBY_VERSION >= '1.9.3'") == 'false' ]]; then
     notok
@@ -215,9 +227,9 @@ fi
 ok
 
 
-# 
+#
 # update existing ~/.dotfiles repositoy or clone it first the first time
-# 
+#
 if [[ -e ~/.dotfiles ]]; then
     cur=$(pwd)
     echo -n "Update $(blue ~/.dotfiles) repository..."
@@ -247,9 +259,9 @@ else
 fi
 
 
-# 
+#
 # check Phantomjs
-# 
+#
 echo -n "Check $(blue phantomjs)..."
 function phantomjs_url() {
     local formula=`curl -s https://raw.github.com/mxcl/homebrew/master/Library/Formula/phantomjs.rb`
@@ -292,9 +304,9 @@ mkdir -p "$backup"
 copy_files ~/.dotfiles/osx/user ~ $backup
 
 
-# 
+#
 # install chrome and firefox extensions
-# 
+#
 chrome_extension 'Adblock Plus'   'cfhdojbkjhnklbpkdaibdccddilifddb' \
                  'https://chrome.google.com/webstore/detail/empty-title/cfhdojbkjhnklbpkdaibdccddilifddb'
 chrome_extension 'PrettyPrint'    'nipdlgebaanapcphbcidpmmmkcecpkhg' \
@@ -322,9 +334,9 @@ firefox_extension 'LiveReload'   'livereload@livereload.com.xpi' \
                   'http://help.livereload.com/kb/general-use/browser-extensions'
 
 
-# 
+#
 # check user permissions on /usr/local/lib/dtrace
-# 
+#
 echo -n "Check $(blue /usr/local/lib/dtrace) permissions..."
 # the folder does not exist, simply create it
 if [[ ! -d /usr/local/lib/dtrace ]]; then
@@ -352,9 +364,9 @@ else
 fi
 
 
-# 
+#
 # removes some folders if stayed empty
-# 
+#
 if [[ $(empty $backup) -eq 1 ]]; then
     echo -e "Delete empty folder $(blue "$backup")" && rm -d $backup
 fi
