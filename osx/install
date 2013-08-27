@@ -5,13 +5,16 @@
 # Write colored output
 #
 green() {
-  printf "\033[0;32m%s\033[0m" $1
+  # printf "\033[0;32m%s\033[0m" $1
+  echo -e "\033[0;32m$1\033[0m"
 }
 red() {
-  printf "\033[0;31m%s\033[0m" $1
+  # printf "\033[0;31m%s\033[0m" $1
+  echo -e "\033[0;31m$1\033[0m"
 }
 blue() {
-  printf "\033[0;34m$1\033[0m" $1
+  # printf "\033[0;34m$1\033[0m" $1
+  echo -e "\033[0;34m$1\033[0m"
 }
 ok() {
   echo `green OK`
@@ -27,23 +30,23 @@ reduce_path() {
   # if the path is in the user directory ($HOME), reduce it using the shortcut '~'
   if [[ $HOME == ${1:0:${#HOME}} ]]; then
     echo ~${1:${#HOME}}
-  # otherwise, simple output
+  # otherwise return the argument
   else
     echo $1
   fi
 }
 
 #
-# Check if a directory is empty. Return 1 if empty, otherwise return nothing
+# Check if a directory is empty, the test includes the hidden files. Return 1 if empty, otherwise return nothing
 #
-function empty_directory() {
+empty_directory() {
   [[ `find $1 -depth 1 2>/dev/null | grep . -c` -eq 0 ]] && echo 1
 }
 
 #
 # Open an url with chrome if installed, otherwise with firefox, otherwise with safari
 #
-function browser() {
+browser() {
   local url=$1
   [[ ${url:0:4} != 'http' ]] && url="http://$url"
 
@@ -86,50 +89,34 @@ EOF
   fi
 }
 
-# copy files from a folder to a folder and backup all already existing files
-# to another folder
-function copy_files() {
-    [[ $# -ne 3 ]] && echo "Runtime error: copy require 3 arguments" && exit 1
-    if [[ ! -d "$3" || ! -d "$3" || ! -d "$3" ]]; then
-        echo "Runtime error: copy require 3 valid paths" && exit 1
-    fi
-    local name
-    for f in $1/{.*,*}; do
-        name=$(basename "$f")
-        # not readable, skip
-        [[ ! -r "$f" ]] && continue
-        # special files, skip
-        [[ "$name" == '.' || "$name" == '..' || "$name" == '.DS_Store' ]] && continue
-        reduced_path=`reduce_path $2/$name`
-        if [[ -e $2/$name ]]; then
-            mv "$2/$name" "$backup"
-            cp -rp "$f" "$2"
-            echo -e "Backup then overwrite $(blue $reduced_path)"
-        else
-            cp -rp "$f" "$2"
-            echo -e "Add $(blue $reduced_path)"
-        fi
-    done
-}
+#
+# Copy files from a folder to another folder and automatically backup all already existing files
+#
+copy_files() {
+  # some security tests before copy
+  [[ $# -ne 2 ]] && echo `red 'runtime: copy_files require 2 arguments'` && exit 1
+  [[ ! -d "$1" || ! -d "$2" ]] && echo `red 'runtime: copy_files require 2 valid paths'` && exit 1
 
-# sets the frontmost opened terminal window as the foreground window on screen
-# and sets the other terminal windows to the background. It's a dirty hack because
-# activate set all the windows of an application to the foreground
-function terminal_frontmost() {
-    arch -i386 osascript <<EOF
-    tell application "Terminal"
-        activate
-        set skip to true
-        repeat with e in windows
-            try
-                if not skip then
-                    set frontmost of e to false
-                end if
-                set skip to false
-            end try
-        end repeat
-    end tell
-EOF
+  # create backup folder and define $backup
+  create_backup
+
+  local name path
+  for f in $1/{.*,*}; do
+    name=`basename "$f"`
+    # not readable, skip
+    [[ ! -r "$f" ]] && continue
+    # special files, skip
+    [[ "$name" == '.' || "$name" == '..' || "$name" == '.DS_Store' ]] && continue
+
+    path=`reduce_path $2/$name`
+    if [[ -e $2/$name ]]; then
+      mv "$2/$name" "$backup"
+      echo "backup then overwrite `blue $path`"
+    else
+      echo "add `blue $path`"
+    fi
+    cp -rp "$f" "$2"
+  done
 }
 
 # install a chrome extension. The installation process is manual (open the extension page on the chrome web store)
@@ -164,37 +151,8 @@ function chrome_extension() {
     fi
 }
 
-# install a firefox extension. The installation process is manual, just like for the chrome process
-function firefox_extension() {
-    # abort function if firefox is not installed
-    [[ ! -d '/Applications/Firefox.app' ]] && return
-    [[ $# -ne 3 ]] && echo "Runtime error: firefox_extension require 3 arguments" && exit 1
-    # argument 1, the name to be displayed
-    # argument 2, the xpi filename to checked inside the extensions directory (if found, it's installed)
-    # argument 3, the URL to open with firefox for launch manual installation
-    local name=$(blue "$1")
-    echo -n -e "Check $name firefox extension..."
-    local profile="$(find ~/Library/Application\ Support/Firefox/Profiles -type d -depth 1 -name '*.default')"
-    if [[ ! "$profile" || ! -f "$profile/extensions/$2" ]]; then
-        notok
-        while true; do
-            echo -e -n "Install $name? [Yn]: "
-            read r
-            r=$(echo "$r" | tr '[A-Z]' '[a-z]')
-            case "$r" in
-                y|n) break ;;
-                 '') r='y' && break ;;
-            esac
-        done
-
-        [[ "$r" == 'y' ]] && open -a Firefox.app $3 && terminal_frontmost
-    else
-        ok
-    fi
-}
-
 #
-# Check Git
+# Check Git. Abort script if not installed
 #
 check_git() {
   printf "check `blue git`..."
@@ -209,7 +167,7 @@ check_git() {
 }
 
 #
-# Check Ruby
+# Check Ruby. Abort script if not installed or version < 1.9.3
 #
 check_ruby() {
   printf "check `blue ruby`..."
@@ -262,7 +220,7 @@ check_repository() {
 }
 
 #
-# Update existing Phantomjs or prompt to install it. Abandons automatically after 7 seconds
+# Update existing Phantomjs or prompt to install it. Skip automatically after 7 seconds
 #
 check_phantomjs() {
   echo -n "check `blue phantomjs`..."
@@ -303,7 +261,7 @@ check_phantomjs() {
          '') r='n' && break ;;
       esac
     done
-    [[ "$r" == 'y' ]] && install
+    [[ "$r" == 'y' ]] && install || true
 
   # already installed
   else
@@ -317,23 +275,137 @@ check_phantomjs() {
     fi
   fi
   unset -f url
+  unset -f online_version
+  unset -f install
 }
 
 
+#
+# Create backup folder and define the variable $backup if needed
+#
+create_backup() {
+  if [[ -z $backup ]]; then
+    # create backup folder
+    backup=~/.dotfiles/.backup/$(date +%Y-%m-%d--%H-%M-%S)
+    mkdir -p "$backup"
+  fi
+}
+
+#
+# Copy some dotfiles from ~/.dotfiles/osx/user to ~ and backup already existing files
+#
+install_user_files() {
+  copy_files ~/.dotfiles/osx/user ~
+}
+
+#
+# Sets the frontmost opened terminal window as the foreground window on screen
+# and sets the other terminal windows to the background. It's a dirty hack because
+# activate set all the windows of an application to the foreground
+#
+terminal_frontmost() {
+  arch -i386 osascript <<EOF
+  tell application "Terminal"
+    activate
+    set skip to true
+    repeat with e in windows
+      try
+        if not skip then
+          set frontmost of e to false
+        end if
+        set skip to false
+      end try
+    end repeat
+    log ""
+  end tell
+EOF
+}
+
+#
+# Install some firefox extensions. Prompt to skip the install. Skip automatically after 7 seconds
+# The installation process is manual, just like for the chrome process
+#
+firefox_extensions() {
+  # abort function if firefox is not installed
+  [[ ! -d '/Applications/Firefox.app' ]] && return
+
+  # inner functions
+  function install() {
+    # echo "install firefox extensions!!"
+    local name=`blue "$1"`
+    echo -n -e "check $name firefox extension..."
+    local profile="$(find ~/Library/Application\ Support/Firefox/Profiles -type d -depth 1 -name '*.default')"
+    if [[ ! "$profile" || ! -f "$profile/extensions/$2" ]]; then
+      notok
+      while true; do
+        echo -e -n "install $name? [Yn]: "
+        read r
+        r=$(echo "$r" | tr '[A-Z]' '[a-z]')
+        case "$r" in
+          y|n) break ;;
+           '') r='y' && break ;;
+        esac
+      done
+
+      [[ "$r" == 'y' ]] && open -a Firefox.app $3 && terminal_frontmost
+    else
+      ok
+    fi
+  }
+
+  while true; do
+    echo -n "install `blue "firefox extensions"`? [yN]: "
+    read -t 7 r
+    # timeout return exitcode 1
+    [[ $? -eq 1 ]] && echo 'n' && r='n' && break
+    r=$(echo "$r" | tr '[A-Z]' '[a-z]')
+    case "$r" in
+      y|n) break ;;
+       '') r='n' && break ;;
+    esac
+  done
+  if [[ "$r" == 'y' ]]; then
+    install 'Adblock Plus' \
+            '{d10d0bf8-f5b5-c8b4-a8b2-2b9879e08c5d}.xpi' \
+            'https://addons.mozilla.org/en-US/firefox/addon/adblock-plus/'
+
+    install 'Firebug' \
+            'firebug@software.joehewitt.com.xpi' \
+            'https://addons.mozilla.org/en-US/firefox/addon/firebug/'
+
+    # the next extensions require to restart Firefox
+    install 'Net Export' \
+            'netexport@getfirebug.com.xpi' \
+            'https://getfirebug.com/releases/netexport/'
+
+    install 'DownThemAll' \
+            '{DDC359D1-844A-42a7-9AA1-88A850A938A8}.xpi' \
+            'https://addons.mozilla.org/en-US/firefox/addon/downthemall/'
+
+    install 'LiveReload' \
+            'livereload@livereload.com.xpi' \
+            'http://help.livereload.com/kb/general-use/browser-extensions'
+  fi
+
+  unset -f install
+}
+
 check_git
 check_ruby
-check_repository
-check_phantomjs
+# check_repository
+# check_phantomjs
+# install_user_files
+firefox_extensions
+
+
+exit
 
 
 
-# create backup folder
-backup=~/.dotfiles/.backup/$(date +%Y-%m-%d--%H-%M-%S)
-mkdir -p "$backup"
 
 # copy files from ~/.dotfiles/osx/user folder to ~
 # and backup already existing files to the backup folder
-copy_files ~/.dotfiles/osx/user ~ $backup
+# copy_files ~/.dotfiles/osx/user ~ $backup
 
 
 #
