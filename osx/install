@@ -90,6 +90,29 @@ EOF
 }
 
 #
+# Sets the frontmost opened terminal window as the foreground window on screen
+# and sets the other terminal windows to the background. It's a dirty hack because
+# activate set all the windows of an application to the foreground
+#
+terminal_frontmost() {
+  arch -i386 osascript <<EOF
+  tell application "Terminal"
+    activate
+    set skip to true
+    repeat with e in windows
+      try
+        if not skip then
+          set frontmost of e to false
+        end if
+        set skip to false
+      end try
+    end repeat
+    log ""
+  end tell
+EOF
+}
+
+#
 # Copy files from a folder to another folder and automatically backup all already existing files
 #
 copy_files() {
@@ -119,37 +142,37 @@ copy_files() {
   done
 }
 
-# install a chrome extension. The installation process is manual (open the extension page on the chrome web store)
-# even if an automatic/silent process is possible and successfully tested. Why? Because:
-# - a locally installed crx will not benefit easily/automatically of the future updates
-# - if you manually uninstall an extension that had been installed silently, this extension is definitly blacklisted
-# http://developer.chrome.com/extensions/external_extensions.html#faq
-function chrome_extension() {
-    # abort function if chrome is not installed
-    [[ ! -d '/Applications/Google Chrome.app' ]] && return
-    [[ $# -ne 3 ]] && echo "Runtime error: chrome_extension require 3 arguments" && exit 1
-    # argument 1, the name to be displayed
-    # argument 2, the id of the extension, it also the directory name to check (if directory, it's installed)
-    # argument 3, the URL to open with chrome for launch manual installation
-    local name=$(blue "$1")
-    echo -n -e "Check $name chrome extension..."
-    if [[ ! -d ~/Library/Application\ Support/Google/Chrome/Default/Extensions/$2 ]]; then
-        notok
-        while true; do
-            echo -e -n "Install $name? [Yn]: "
-            read r
-            r=$(echo "$r" | tr '[A-Z]' '[a-z]')
-            case "$r" in
-                y|n) break ;;
-                 '') r='y' && break ;;
-            esac
-        done
+# # install a chrome extension. The installation process is manual (open the extension page on the chrome web store)
+# # even if an automatic/silent process is possible and successfully tested. Why? Because:
+# # - a locally installed crx will not benefit easily/automatically of the future updates
+# # - if you manually uninstall an extension that had been installed silently, this extension is definitly blacklisted
+# # http://developer.chrome.com/extensions/external_extensions.html#faq
+# function chrome_extension() {
+#     # abort function if chrome is not installed
+#     [[ ! -d '/Applications/Google Chrome.app' ]] && return
+#     [[ $# -ne 3 ]] && echo "Runtime error: chrome_extension require 3 arguments" && exit 1
+#     # argument 1, the name to be displayed
+#     # argument 2, the id of the extension, it also the directory name to check (if directory, it's installed)
+#     # argument 3, the URL to open with chrome for launch manual installation
+#     local name=$(blue "$1")
+#     echo -n -e "Check $name chrome extension..."
+#     if [[ ! -d ~/Library/Application\ Support/Google/Chrome/Default/Extensions/$2 ]]; then
+#         notok
+#         while true; do
+#             echo -e -n "Install $name? [Yn]: "
+#             read r
+#             r=$(echo "$r" | tr '[A-Z]' '[a-z]')
+#             case "$r" in
+#                 y|n) break ;;
+#                  '') r='y' && break ;;
+#             esac
+#         done
 
-        [[ "$r" == 'y' ]] && browser $3 && terminal_frontmost
-    else
-        ok
-    fi
-}
+#         [[ "$r" == 'y' ]] && browser $3 && terminal_frontmost
+#     else
+#         ok
+#     fi
+# }
 
 #
 # Check Git. Abort script if not installed
@@ -159,8 +182,9 @@ check_git() {
   if [[ -z `type -p git` ]]; then
     notok
     echo 'Aborted: Git must be installed'
-    sleep 1
     browser 'http://git-scm.com/download/mac'
+    sleep 1
+    terminal_frontmost
     exit 1
   fi
   ok
@@ -174,8 +198,9 @@ check_ruby() {
   if [[ -z `type -p ruby` || `ruby -e "puts RUBY_VERSION >= '1.9.3'"` == 'false' ]]; then
     notok
     echo 'Aborted: Ruby must be installed. Version 1.9.3 minimum'
-    sleep 1
     browser 'https://rvm.io/'
+    sleep 1
+    terminal_frontmost
     exit 1
   fi
   ok
@@ -299,26 +324,70 @@ install_user_files() {
 }
 
 #
-# Sets the frontmost opened terminal window as the foreground window on screen
-# and sets the other terminal windows to the background. It's a dirty hack because
-# activate set all the windows of an application to the foreground
+# Install some chrome extensions. Prompt to skip the install. Skip automatically after 7 seconds
+# The installation process is manual (open the extension page on the chrome web store)
+# even if an automatic/silent process is possible and successfully tested
+# Why? Because:
+# - a locally installed crx will not benefit easily/automatically of the future updates
+# - if you manually uninstall an extension that had been installed silently, this extension is definitly blacklisted
+# http://developer.chrome.com/extensions/external_extensions.html#faq
 #
-terminal_frontmost() {
-  arch -i386 osascript <<EOF
-  tell application "Terminal"
-    activate
-    set skip to true
-    repeat with e in windows
-      try
-        if not skip then
-          set frontmost of e to false
-        end if
-        set skip to false
-      end try
-    end repeat
-    log ""
-  end tell
-EOF
+chrome_extensions() {
+  # abort function if chrome is not installed
+  [[ ! -d '/Applications/Google Chrome.app' ]] && return
+
+  # inner function
+  function install() {
+    local name=`blue "$1"`
+    echo -n -e "check $name chrome extension..."
+    if [[ ! -d ~/Library/Application\ Support/Google/Chrome/Default/Extensions/$2 ]]; then
+      notok
+      while true; do
+        echo -e -n "install $name? [Yn]: "
+        read r
+        r=$(echo "$r" | tr '[A-Z]' '[a-z]')
+        case "$r" in
+          y|n) break ;;
+           '') r='y' && break ;;
+        esac
+      done
+
+      [[ "$r" == 'y' ]] && browser $3 && terminal_frontmost
+    else
+      ok
+    fi
+  }
+
+  while true; do
+    echo -n "install `blue "chrome extensions"`? [yN]: "
+    read -t 7 r
+    # timeout return exitcode 1
+    [[ $? -eq 1 ]] && echo 'n' && r='n' && break
+    r=$(echo "$r" | tr '[A-Z]' '[a-z]')
+    case "$r" in
+      y|n) break ;;
+       '') r='n' && break ;;
+    esac
+  done
+  if [[ "$r" == 'y' ]]; then
+    install 'Adblock Plus' \
+            'cfhdojbkjhnklbpkdaibdccddilifddb' \
+            'https://chrome.google.com/webstore/detail/empty-title/cfhdojbkjhnklbpkdaibdccddilifddb'
+
+    install 'PrettyPrint' \
+            'nipdlgebaanapcphbcidpmmmkcecpkhg' \
+            'https://chrome.google.com/webstore/detail/prettyprint/nipdlgebaanapcphbcidpmmmkcecpkhg'
+
+    install 'JSON Formatter' \
+            'bcjindcccaagfpapjjmafapmmgkkhgoa' \
+            'https://chrome.google.com/webstore/detail/json-formatter/bcjindcccaagfpapjjmafapmmgkkhgoa'
+
+    install 'LiveReload' \
+            'jnihajbhpnppcggbcgedagnkighmdlei' \
+            'https://chrome.google.com/webstore/detail/livereload/jnihajbhpnppcggbcgedagnkighmdlei'
+  fi
+
+  unset -f install
 }
 
 #
@@ -329,9 +398,8 @@ firefox_extensions() {
   # abort function if firefox is not installed
   [[ ! -d '/Applications/Firefox.app' ]] && return
 
-  # inner functions
+  # inner function
   function install() {
-    # echo "install firefox extensions!!"
     local name=`blue "$1"`
     echo -n -e "check $name firefox extension..."
     local profile="$(find ~/Library/Application\ Support/Firefox/Profiles -type d -depth 1 -name '*.default')"
@@ -373,7 +441,7 @@ firefox_extensions() {
             'firebug@software.joehewitt.com.xpi' \
             'https://addons.mozilla.org/en-US/firefox/addon/firebug/'
 
-    # the next extensions require to restart Firefox
+    # the next extensions require to restart firefox
     install 'Net Export' \
             'netexport@getfirebug.com.xpi' \
             'https://getfirebug.com/releases/netexport/'
@@ -390,52 +458,20 @@ firefox_extensions() {
   unset -f install
 }
 
+
+
 check_git
 check_ruby
-# check_repository
-# check_phantomjs
-# install_user_files
+check_repository
+check_phantomjs
+install_user_files
+chrome_extensions
 firefox_extensions
 
 
 exit
 
 
-
-
-# copy files from ~/.dotfiles/osx/user folder to ~
-# and backup already existing files to the backup folder
-# copy_files ~/.dotfiles/osx/user ~ $backup
-
-
-#
-# install chrome and firefox extensions
-#
-chrome_extension 'Adblock Plus'   'cfhdojbkjhnklbpkdaibdccddilifddb' \
-                 'https://chrome.google.com/webstore/detail/empty-title/cfhdojbkjhnklbpkdaibdccddilifddb'
-chrome_extension 'PrettyPrint'    'nipdlgebaanapcphbcidpmmmkcecpkhg' \
-                 'https://chrome.google.com/webstore/detail/prettyprint/nipdlgebaanapcphbcidpmmmkcecpkhg'
-chrome_extension 'JSON Formatter' 'bcjindcccaagfpapjjmafapmmgkkhgoa' \
-                 'https://chrome.google.com/webstore/detail/json-formatter/bcjindcccaagfpapjjmafapmmgkkhgoa'
-chrome_extension 'LiveReload'     'jnihajbhpnppcggbcgedagnkighmdlei' \
-                 'https://chrome.google.com/webstore/detail/livereload/jnihajbhpnppcggbcgedagnkighmdlei'
-
-
-firefox_extension 'Adblock Plus' '{d10d0bf8-f5b5-c8b4-a8b2-2b9879e08c5d}.xpi' \
-                  'https://addons.mozilla.org/en-US/firefox/addon/adblock-plus/'
-
-firefox_extension 'Firebug'      'firebug@software.joehewitt.com.xpi' \
-                  'https://addons.mozilla.org/en-US/firefox/addon/firebug/'
-
-# the next extensions require to restart Firefox
-firefox_extension 'Net Export'   'netexport@getfirebug.com.xpi' \
-                  'https://getfirebug.com/releases/netexport/'
-
-firefox_extension 'DownThemAll'  '{DDC359D1-844A-42a7-9AA1-88A850A938A8}.xpi' \
-                  'https://addons.mozilla.org/en-US/firefox/addon/downthemall/'
-
-firefox_extension 'LiveReload'   'livereload@livereload.com.xpi' \
-                  'http://help.livereload.com/kb/general-use/browser-extensions'
 
 
 #
