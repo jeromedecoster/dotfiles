@@ -5,15 +5,12 @@
 # Write colored output
 #
 green() {
-  # printf "\033[0;32m%s\033[0m" $1
   echo -e "\033[0;32m$1\033[0m"
 }
 red() {
-  # printf "\033[0;31m%s\033[0m" $1
   echo -e "\033[0;31m$1\033[0m"
 }
 blue() {
-  # printf "\033[0;34m$1\033[0m" $1
   echo -e "\033[0;34m$1\033[0m"
 }
 ok() {
@@ -114,6 +111,7 @@ EOF
 
 #
 # Copy files from a folder to another folder and automatically backup all already existing files
+# The function invokes 'create_backup' who creates backup folder and defines the variable $backup
 #
 copy_files() {
   # some security tests before copy
@@ -132,47 +130,21 @@ copy_files() {
     [[ "$name" == '.' || "$name" == '..' || "$name" == '.DS_Store' ]] && continue
 
     path=`reduce_path $2/$name`
+    # the file already exist
     if [[ -e $2/$name ]]; then
-      mv "$2/$name" "$backup"
-      echo "backup then overwrite `blue $path`"
+      # backup and overwrite only if the file content is different
+      if [[ -n `diff "$f" "$2/$name"` ]]; then
+        mv "$2/$name" "$backup"
+        echo "backup then overwrite `blue $path`"
+        cp -rp "$f" "$2"
+      fi
+    # the file does not already exist
     else
       echo "add `blue $path`"
+      cp -rp "$f" "$2"
     fi
-    cp -rp "$f" "$2"
   done
 }
-
-# # install a chrome extension. The installation process is manual (open the extension page on the chrome web store)
-# # even if an automatic/silent process is possible and successfully tested. Why? Because:
-# # - a locally installed crx will not benefit easily/automatically of the future updates
-# # - if you manually uninstall an extension that had been installed silently, this extension is definitly blacklisted
-# # http://developer.chrome.com/extensions/external_extensions.html#faq
-# function chrome_extension() {
-#     # abort function if chrome is not installed
-#     [[ ! -d '/Applications/Google Chrome.app' ]] && return
-#     [[ $# -ne 3 ]] && echo "Runtime error: chrome_extension require 3 arguments" && exit 1
-#     # argument 1, the name to be displayed
-#     # argument 2, the id of the extension, it also the directory name to check (if directory, it's installed)
-#     # argument 3, the URL to open with chrome for launch manual installation
-#     local name=$(blue "$1")
-#     echo -n -e "Check $name chrome extension..."
-#     if [[ ! -d ~/Library/Application\ Support/Google/Chrome/Default/Extensions/$2 ]]; then
-#         notok
-#         while true; do
-#             echo -e -n "Install $name? [Yn]: "
-#             read r
-#             r=$(echo "$r" | tr '[A-Z]' '[a-z]')
-#             case "$r" in
-#                 y|n) break ;;
-#                  '') r='y' && break ;;
-#             esac
-#         done
-
-#         [[ "$r" == 'y' ]] && browser $3 && terminal_frontmost
-#     else
-#         ok
-#     fi
-# }
 
 #
 # Check Git. Abort script if not installed
@@ -458,7 +430,52 @@ firefox_extensions() {
   unset -f install
 }
 
+#
+# Check user permissions on /usr/local/lib/dtrace
+# If this directory is not owned by you, nodejs fire some annoying 'permissions denied'
+#
+check_dtrace() {
+  echo -n "check `blue /usr/local/lib/dtrace` permissions..."
+  # the folder does not exist, simply create it
+  if [[ ! -d /usr/local/lib/dtrace ]]; then
+    mkdir -p /usr/local/lib/dtrace
+    ok
+  else
+    # if we are not the owner of this folder, prompt to chown it
+    if [[ `stat -f %u /usr/local/lib/dtrace` != `id -u` ]]; then
+      notok
+      echo "you are not the owner of the directory `blue /usr/local/lib/dtrace`"
+      echo "this may result some annoying `red 'permissions denied'` problems with nodejs"
+      while true; do
+        echo -n "Do you want to `blue 'sudo chown'` this directory? [Yn]: "
+        read r
+        r=$(echo "$r" | tr '[A-Z]' '[a-z]')
+        case "$r" in
+          y|n) break ;;
+           '') r='y' && break ;;
+        esac
+      done
+      [[ "$r" == 'y' ]] && sudo chown `whoami` /usr/local/lib/dtrace || true
+    else
+      ok
+    fi
+  fi
+}
 
+#
+# Removes some backup directories if stayed empty
+#
+clear_backup() {
+  if [[ -n $backup && `empty_directory $backup` ]]; then
+    reduced=`reduce_path "$backup"`
+    echo "delete empty directory `blue "$reduced"`"
+    rm -d $backup
+  fi
+  if [[ `empty_directory ~/.dotfiles/.backup` ]]; then
+    echo "delete empty directory `blue "~/.dotfiles/.backup"`"
+    rm -d ~/.dotfiles/.backup
+  fi
+}
 
 check_git
 check_ruby
@@ -467,50 +484,5 @@ check_phantomjs
 install_user_files
 chrome_extensions
 firefox_extensions
-
-
-exit
-
-
-
-
-#
-# check user permissions on /usr/local/lib/dtrace
-#
-echo -n "Check $(blue /usr/local/lib/dtrace) permissions..."
-# the folder does not exist, simply create it
-if [[ ! -d /usr/local/lib/dtrace ]]; then
-    mkdir -p /usr/local/lib/dtrace
-    ok
-else
-    # if we are not the owner of this folder, prompt to chown it
-    if [[ "$(stat -f %u /usr/local/lib/dtrace)" != "$(id -u)" ]]; then
-        notok
-        echo "You are not the owner of the directory $(blue /usr/local/lib/dtrace)"
-        echo "This may result some annoying $(red 'permissions denied') problems with nodejs"
-        while true; do
-            echo -n "Do you want to $(blue 'sudo chown') this directory? [Yn]: "
-            read r
-            r=$(echo "$r" | tr '[A-Z]' '[a-z]')
-            case "$r" in
-                y|n) break ;;
-                 '') r='y' && break ;;
-            esac
-        done
-        [[ "$r" == 'y' ]] && sudo chown `whoami` /usr/local/lib/dtrace
-    else
-        ok
-    fi
-fi
-
-
-#
-# removes some folders if stayed empty
-#
-if [[ "`empty_directory $backup`" ]]; then
-  reduced=`reduce_path "$backup"`
-  echo -e "Delete empty folder $(blue "$reduced")" && rm -d $backup
-fi
-if [[ "$(empty_directory ~/.dotfiles/.backup)" ]]; then
-  echo -e "Delete empty folder $(blue "~/.dotfiles/.backup")" && rm -d ~/.dotfiles/.backup
-fi
+check_dtrace
+clear_backup
