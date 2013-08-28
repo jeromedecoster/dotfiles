@@ -12,12 +12,15 @@ EOF)
 # open with the Finder, force column view
 # empty log to prevent the annoying echo 'column view' in the Terminal
 function finder() {
-    arch -i386 osascript <<EOF
+  local cmd
+  arch -i386 pwd &>/dev/null
+  [[ $? -eq 0 ]] && cmd="arch -i386 osascript" || cmd="osascript"
+  eval "$cmd" <<EOF
     tell application "Finder"
-        activate
-        open ("$1" as POSIX file)
-        set current view of front window to column view
-        log ""
+      activate
+      open ("$1" as POSIX file)
+      set current view of front window to column view
+      log ""
     end tell
 EOF
 }
@@ -96,7 +99,7 @@ if [[ $# -gt 0 && $# -lt 3 ]]; then
 
     if [[ ${uri:$((${#uri}-4))} == 'html' || ${uri:$((${#uri}-3))} == 'htm' ]]; then
         # html file detected, check it's a real local file
-        # if yes, will be opened with 'file:///path/to/file' uri 
+        # if yes, will be opened with 'file:///path/to/file' uri
 
         # first test if Ruby or Python is installed
         # if not, write an error message in the stderr and exit 1
@@ -121,7 +124,7 @@ if [[ $# -gt 0 && $# -lt 3 ]]; then
         uri=${uri:7}
     elif [[ ${uri:0:1} == '.' ]]; then
         # if starts with a dot, get the absolute path with Ruby or Python
-        
+
         # first test if Ruby or Python is installed
         # if not, write an error message in the stderr and exit 1
         check_ruby_python
@@ -130,14 +133,14 @@ if [[ $# -gt 0 && $# -lt 3 ]]; then
         # exit if the function return an error
         [[ $? -ne 0 ]] && exit 1
     fi
-    
+
     # if the uri starts with a '/', it's a local uri, browse with the Finder
     # exception for html local files, opened with a browser
     if [[ ! "$localhtml" && ${uri:0:1} == '/' ]]; then
         [[ -f "$uri" ]] && uri=$(dirname "$uri")
-        
+
         # if the file or directory exists, open it with the Finder
-        if [[ -e "$uri" ]]; then 
+        if [[ -e "$uri" ]]; then
             finder $uri
         # otherwise write an error message in the stderr and exit 1
         else
@@ -148,7 +151,7 @@ if [[ $# -gt 0 && $# -lt 3 ]]; then
 
         # browsers require full url (starting with http://)
         [[ ! "$localhtml" && ${uri:0:4} != 'http' ]] && uri="http://$uri"
-        
+
         # open with a browser (if a specific browser is required or if it's installed)
         if [[ ! "$app" && "$chrome" -eq 1 || "$app" == 'chrome' ]]; then
             chrome "$uri"

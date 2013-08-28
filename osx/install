@@ -49,7 +49,10 @@ browser() {
 
   # if Chrome, browse with it
   if [[ -d '/Applications/Google Chrome.app' ]]; then
-    arch -i386 osascript <<EOF
+    local cmd
+    arch -i386 pwd &>/dev/null
+    [[ $? -eq 0 ]] && cmd="arch -i386 osascript" || cmd="osascript"
+    eval "$cmd" <<EOF
       set launched to true
       if application "Google Chrome" is not running then
         set launched to false
@@ -92,7 +95,10 @@ EOF
 # activate set all the windows of an application to the foreground
 #
 terminal_frontmost() {
-  arch -i386 osascript <<EOF
+  local cmd
+  arch -i386 pwd &>/dev/null
+  [[ $? -eq 0 ]] && cmd="arch -i386 osascript" || cmd="osascript"
+  eval "$cmd" <<EOF
   tell application "Terminal"
     activate
     set skip to true

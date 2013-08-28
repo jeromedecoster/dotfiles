@@ -104,7 +104,7 @@ function undot() {
         -a|-b|-d|-e|-i|-n|-u) ;;
                            *) usage=1 ;;
     esac
-    
+
     if [[ "$usage" -ne 1 ]]; then
         local BLU="\033[0;34m"
         local RES="\033[0m"
@@ -167,7 +167,7 @@ EOF)
                 if [[ $(echo "$process" | grep -v -c "grep") -ne 0 ]]; then
                     killall "Google Chrome"
                 fi
-                
+
                 # uninstall the extensions in arrays
                 names=('Adblock Plus' PrettyPrint 'JSON Formatter' LiveReload)
                 ids=(cfhdojbkjhnklbpkdaibdccddilifddb nipdlgebaanapcphbcidpmmmkcecpkhg \
@@ -194,7 +194,10 @@ EOF)
                     # there is also a strange applescript problem: if we want check if firefox is already running
                     # or not, all the possible/usual ways to test it will not works because each test starts firefox
                     # if it is currently closed. So we need to check it with 'ps -e'
-                    arch -i386 osascript <<EOF
+                    local cmd
+                    arch -i386 pwd &>/dev/null
+                    [[ $? -eq 0 ]] && cmd="arch -i386 osascript" || cmd="osascript"
+                    eval "$cmd" <<EOF
         tell application "Firefox" to quit
         delay 1
 EOF
@@ -207,7 +210,7 @@ EOF
                     xpis=('{d10d0bf8-f5b5-c8b4-a8b2-2b9879e08c5d}.xpi' 'firebug@software.joehewitt.com.xpi' \
                           'netexport@getfirebug.com.xpi' '{DDC359D1-844A-42a7-9AA1-88A850A938A8}.xpi' \
                           'livereload@livereload.com.xpi')
-                    
+
                     for (( i=0; i<${#names[@]}; i=i+1 )); do
                         if [[ -f "$profile/extensions/${xpis[i]}" ]]; then
                             rm -f "$profile/extensions/${xpis[i]}"
@@ -247,7 +250,7 @@ EOF
                     # check if a sudo is needed to chown. if admin or
                     # already sudoed, no need to prompt the user
                     sudo -n true 2>/dev/null
-                    # if a sudo is required, the command above will exit 1 
+                    # if a sudo is required, the command above will exit 1
                     if [[ $? -ne 0 ]]; then
                         prompt_chown $dir
                         # prompt_chown set the var $selected to 'y' if the user accepct the sudo
@@ -277,7 +280,7 @@ EOF
                     # check if a sudo is needed to chown. if admin or
                     # already sudoed, no need to prompt the user
                     sudo -n true 2>/dev/null
-                    # if a sudo is required, the command above will exit 1 
+                    # if a sudo is required, the command above will exit 1
                     if [[ $? -ne 0 ]]; then
                         prompt_chown $dir
                         # prompt_chown set the var $selected to 'y' if the user accepct the sudo
@@ -336,21 +339,24 @@ EOF)
 # closes all the opened Finder windows and set the view
 # of the next opened window to column view
 function kaf() {
-    arch -i386 osascript <<EOF
+  local cmd
+  arch -i386 pwd &>/dev/null
+  [[ $? -eq 0 ]] && cmd="arch -i386 osascript" || cmd="osascript"
+  eval "$cmd" <<EOF
     tell application "Finder"
-        set lst to windows as list
-        set cnt to count of lst
-        if cnt > 1 then
-            repeat with e in (items 2 thru cnt of lst)
-                close e
-            end repeat
-        end if
-        if cnt > 0 then
-            set e to item 1 of lst
-            set current view of e to column view
-            close e
-        end if
-        log ""
+      set lst to windows as list
+      set cnt to count of lst
+      if cnt > 1 then
+        repeat with e in (items 2 thru cnt of lst)
+          close e
+        end repeat
+      end if
+      if cnt > 0 then
+        set e to item 1 of lst
+        set current view of e to column view
+        close e
+      end if
+      log ""
     end tell
 EOF
 }
@@ -359,16 +365,19 @@ EOF
 # keeps the frontmost window of the Finder as is
 # and closes all the others
 function kof() {
-    arch -i386 osascript <<EOF
+  local cmd
+  arch -i386 pwd &>/dev/null
+  [[ $? -eq 0 ]] && cmd="arch -i386 osascript" || cmd="osascript"
+  eval "$cmd" <<EOF
     tell application "Finder"
-        set lst to windows as list
-        set cnt to count of lst
-        if cnt > 1 then
-            repeat with e in (items 2 thru cnt of lst)
-                close e
-            end repeat
-        end if
-        log ""
+      set lst to windows as list
+      set cnt to count of lst
+      if cnt > 1 then
+        repeat with e in (items 2 thru cnt of lst)
+          close e
+        end repeat
+      end if
+      log ""
     end tell
 EOF
 }
@@ -376,14 +385,17 @@ EOF
 # kat, 'kill all terminal'
 # closes all the opened Terminal windows
 function kat() {
-    arch -i386 osascript <<EOF
+  local cmd
+  arch -i386 pwd &>/dev/null
+  [[ $? -eq 0 ]] && cmd="arch -i386 osascript" || cmd="osascript"
+  eval "$cmd" <<EOF
     if application "Terminal" is running then
-        tell application "Terminal"
-            set lst to windows as list
-            repeat with e in lst
-                close e
-            end repeat
-        end tell
+      tell application "Terminal"
+        set lst to windows as list
+        repeat with e in lst
+          close e
+        end repeat
+      end tell
     end if
 EOF
 }
@@ -392,39 +404,42 @@ EOF
 # keeps the current Terminal window/tab and
 # closes all the others
 function kot() {
-    arch -i386 osascript <<EOF
+  local cmd
+  arch -i386 pwd &>/dev/null
+  [[ $? -eq 0 ]] && cmd="arch -i386 osascript" || cmd="osascript"
+  eval "$cmd" <<EOF
     if application "Terminal" is running then
-        tell application "Terminal"
-            set lst to windows as list
-            set cnt to count of lst
-            if cnt > 1 then
-                repeat with e in (items 2 thru cnt of lst)
-                    close e
-                end repeat
-            end if
-            if cnt > 0 then
-                activate
-                set lst to tabs of item 1 of lst
-                set cnt to count of lst
-                if cnt > 1 then
-                    repeat with i from 1 to count lst
-                        if selected of item i of lst then
-                            set idx to i
-                            exit repeat
-                        end if
-                    end repeat
-                    repeat with i from 1 to cnt
-                        -- revese idx because repeat with can only increase values
-                        set rev to (cnt + 1 - i)
-                        if not rev = idx then
-                            set selected of item rev of lst to true
-                            -- keystroke hack because there is no api to close terminal tab
-                            tell application "System Events" to tell process "Terminal.app" to keystroke "w" using command down
-                        end if
-                    end repeat
-                end if
-            end if
-        end tell
+      tell application "Terminal"
+        set lst to windows as list
+        set cnt to count of lst
+        if cnt > 1 then
+          repeat with e in (items 2 thru cnt of lst)
+            close e
+          end repeat
+        end if
+        if cnt > 0 then
+          activate
+          set lst to tabs of item 1 of lst
+          set cnt to count of lst
+          if cnt > 1 then
+            repeat with i from 1 to count lst
+              if selected of item i of lst then
+                set idx to i
+                exit repeat
+              end if
+            end repeat
+            repeat with i from 1 to cnt
+              -- revese idx because repeat with can only increase values
+              set rev to (cnt + 1 - i)
+              if not rev = idx then
+                set selected of item rev of lst to true
+                -- keystroke hack because there is no api to close terminal tab
+                tell application "System Events" to tell process "Terminal.app" to keystroke "w" using command down
+              end if
+            end repeat
+          end if
+        end if
+      end tell
     end if
 EOF
 }
