@@ -169,18 +169,10 @@ check_git() {
 }
 
 #
-# Check Ruby. Abort script if not installed or version < 1.9.3
+# Check Ruby. Abort script if not installed or try to upgrade if version < 1.9.3
 #
 check_ruby() {
   printf "check `blue ruby`..."
-  # if [[ -z `type -p ruby` || `ruby -e "puts RUBY_VERSION >= '1.9.3'"` == 'false' ]]; then
-  #   notok
-  #   echo 'Aborted: Ruby must be installed. Version 1.9.3 minimum'
-  #   browser 'https://rvm.io/'
-  #   sleep 1
-  #   terminal_frontmost
-  #   exit 1
-  # fi
 
   # inner functions
   function uninstall_rvm() {
@@ -212,7 +204,38 @@ check_ruby() {
     fi
   }
   function install_rbenv_and_ruby() {
-    echo "install_rbenv_and_ruby"
+    echo "install minimal tarball `blue homebrew` in `blue /usr/local/homebrew`"
+    rm -rf /usr/local/homebrew
+    mkdir /usr/local/homebrew
+    curl -sL https://github.com/mxcl/homebrew/tarball/master | tar xz --strip 1 -C /usr/local/homebrew
+    #
+    PATH=/usr/local/homebrew/bin:$PATH
+    export PATH
+    echo "install `blue rbenv` with homebrew"
+    sleep 1
+    echo
+    brew install rbenv
+    echo
+    echo "install `blue ruby-build` with homebrew"
+    sleep 1
+    echo
+    brew install ruby-build
+    #
+    echo
+    echo "install `blue "ruby 1.9.3-p327"` with rbenv"
+    sleep 1
+    echo
+    eval "$(rbenv init -)"
+    rbenv install 1.9.3-p327
+    rbenv global 1.9.3-p327
+
+    printf "check `blue ruby`..."
+    if [[ `ruby -e "puts RUBY_VERSION >= '1.9.3'"` == 'false' ]]; then
+      notok
+      echo "abort: the `red "scripted install of Ruby has failed"`. Please do it manually"
+      exit 1
+    fi
+    ok
   }
 
   if [[ -z `type -p ruby` ]]; then
@@ -270,8 +293,6 @@ check_ruby() {
   unset -f uninstall_rvm
   unset -f install_rbenv_and_ruby
 }
-check_ruby
-exit
 
 #
 # Update existing ~/.dotfiles repositoy or clone it first the first time
@@ -574,6 +595,8 @@ clear_backup() {
 
 check_git
 check_ruby
+echo "yeah baby"
+exit
 check_repository
 check_phantomjs
 install_user_files
