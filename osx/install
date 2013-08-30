@@ -159,7 +159,7 @@ check_git() {
   printf "check `blue git`..."
   if [[ -z `type -p git` ]]; then
     notok
-    echo 'Aborted: Git must be installed'
+    echo 'abort: Git must be installed'
     browser 'http://git-scm.com/download/mac'
     sleep 1
     terminal_frontmost
@@ -173,16 +173,105 @@ check_git() {
 #
 check_ruby() {
   printf "check `blue ruby`..."
-  if [[ -z `type -p ruby` || `ruby -e "puts RUBY_VERSION >= '1.9.3'"` == 'false' ]]; then
+  # if [[ -z `type -p ruby` || `ruby -e "puts RUBY_VERSION >= '1.9.3'"` == 'false' ]]; then
+  #   notok
+  #   echo 'Aborted: Ruby must be installed. Version 1.9.3 minimum'
+  #   browser 'https://rvm.io/'
+  #   sleep 1
+  #   terminal_frontmost
+  #   exit 1
+  # fi
+
+  # inner functions
+  function uninstall_rvm() {
+    # the ~/.rvm directory must be 'sudo chown' to be deleted
+    if [[ -d ~/.rvm ]]; then
+      while true; do
+        echo -n "do you want to `blue 'sudo chown'` the directory `blue "~/.rvm"`? [Yn]: "
+        read r
+        r=$(echo "$r" | tr '[A-Z]' '[a-z]')
+        case "$r" in
+          y|n) break ;;
+           '') r='y' && break ;;
+        esac
+      done
+      [[ "$r" == 'y' ]] && sudo chown -R `whoami` ~/.rvm || true
+    fi
+
+    rvm implode
+    rm -rf ~/.rvm
+    rm -rf ~/.rvmrc
+    rm -rf /etc/rvmrc
+    unset -f rvm
+
+    # if uncommented line found in ~/.bash_profile to source rvm, comment it
+    if [[ -f ~/.bash_profile && `egrep '^[^#].*\.rvm/scripts/rvm' ~/.bash_profile` ]]; then
+      local tmp=`mktemp /tmp/rvm.XXXXX`
+      sed '/^.*\.rvm\/scripts\/rvm.*/ s/^/#/' ~/.bash_profile > $tmp && mv $tmp ~/.bash_profile
+      rm -f $tmp
+    fi
+  }
+  function install_rbenv_and_ruby() {
+    echo "install_rbenv_and_ruby"
+  }
+
+  if [[ -z `type -p ruby` ]]; then
     notok
-    echo 'Aborted: Ruby must be installed. Version 1.9.3 minimum'
-    browser 'https://rvm.io/'
-    sleep 1
-    terminal_frontmost
+    echo 'abort: Ruby must be installed. Version 1.9.3 minimum'
     exit 1
+  else
+    if [[ `ruby -e "puts RUBY_VERSION >= '1.9.3'"` == 'false' ]]; then
+      notok
+      type -p rvm &>/dev/null
+      # rvm detected, prompt to abort the script or uninstall it
+      if [[ $? -eq 0 ]]; then
+        echo "`red rvm` detected while `blue rbenv` is prefered"
+        echo "please choose between:"
+        echo " ➜ abort this script to install ruby manually with rvm"
+        echo " ➜ uninstall rvm then install rbenv"
+        while true; do
+          echo -e -n "abort or uninstall? [Au]: "
+          read r
+          r=$(echo "$r" | tr '[A-Z]' '[a-z]')
+          case "$r" in
+            a|u) break ;;
+             '') r='a' && break ;;
+          esac
+        done
+        if [[ "$r" == 'a' ]]; then
+          echo 'abort: Manual install chosen'
+          exit 1
+        else
+          uninstall_rvm
+        fi
+      fi
+      local version=`ruby -e "puts RUBY_VERSION"`
+      type -p rbenv &>/dev/null
+      # rbenv detected, abort with a message to upgrade Ruby
+      if [[ $? -eq 0 ]]; then
+        echo "abort: Ruby `red $version` detected. Version 1.9.3 minimum"
+        echo "abort: please execute `blue "rbenv install 1.9.3-p327"`"
+        exit 1
+      else
+        type -p brew &>/dev/null
+        # homebrew detected, abort with a message to upgrade Ruby
+        if [[ $? -eq 0 ]]; then
+          echo "abort: Ruby `red $version` detected. Version 1.9.3 minimum"
+          echo "abort: please execute `blue "brew install ruby"`"
+          exit 1
+        else
+          install_rbenv_and_ruby
+        fi
+      fi
+    else
+      ok
+    fi
   fi
-  ok
+  unset -f uninstall_rvm
+  unset -f install_rbenv_and_ruby
 }
+check_ruby
+exit
 
 #
 # Update existing ~/.dotfiles repositoy or clone it first the first time
@@ -453,7 +542,7 @@ check_dtrace() {
       echo "you are not the owner of the directory `blue /usr/local/lib/dtrace`"
       echo "this may result some annoying `red 'permissions denied'` problems with nodejs"
       while true; do
-        echo -n "Do you want to `blue 'sudo chown'` this directory? [Yn]: "
+        echo -n "do you want to `blue 'sudo chown'` this directory? [Yn]: "
         read r
         r=$(echo "$r" | tr '[A-Z]' '[a-z]')
         case "$r" in
