@@ -13,11 +13,30 @@ red() {
 blue() {
   echo -e "\033[0;34m$1\033[0m"
 }
+yellow() {
+  echo -e "\033[0;33m$1\033[0m"
+}
 ok() {
   echo `green OK`
 }
 notok() {
   echo `red KO`
+}
+
+#
+# Write a message with 5 seconds delay info
+#
+message_delay() {
+  for i in {5..0}; do
+    if [[ $i -gt 0 ]]; then
+      echo "$1 `yellow "   [in $i sec]"`"
+      sleep 1
+      # erase_line
+      printf "\033[1A\033[2K"
+    else
+      echo $1
+    fi
+  done
 }
 
 #
@@ -30,6 +49,105 @@ reduce_path() {
   # otherwise return the argument
   else
     echo $1
+  fi
+}
+
+#
+# Check if I am the owner of a file or a directory
+# The test can include all sub files and sub directories if the second argument is -R
+# Return nothing if something failed
+# Return 1 if I am the owner of file(s)/director(y|ies), otherwise return 0
+#
+check_owner() {
+  # security test before check
+  [[ -n $2 && $2 != '-R' ]] && echo `red 'runtime: check_owner wrong second argument'` && exit 1
+
+  # abort if the target does not exist
+  [[ ! -e "$1" ]] && return
+
+  # recursive test
+  if [[ $2 = '-R' ]]; then
+
+    # abort if the target is not a directory
+    [[ ! -d "$1" ]] && return
+
+    local who=`whoami | xargs id -u`
+
+    # return the count of files and directories from the directory "$1" where the owner is not me
+    # the result include the "$1" directory
+    # the result exclude some crap files and directories
+    local count=`find -E "$1" ! -name .DS_Store \
+                              ! -name desktop.ini \
+                              ! -name Thumbs.db \
+                              ! -regex ".*/\.DocumentRevisions-V100/*.*" \
+                              ! -regex ".*/\.fseventsd/*.*" \
+                              ! -regex ".*/\.TemporaryItems/*.*" \
+                              ! -regex ".*/\.Trashes/*.*" \
+                              ! -regex ".*/\.Spotlight-V100/*.*" \
+                              ! -regex ".*/\.(git|svn)/*.*" -exec stat -f %u '{}' \; -print \
+                  | egrep "^[[:digit:]]+$" \
+                  | grep -vc $who`
+
+    [[ $count -eq 0 ]] && echo 1 || echo 0
+
+  # not a recursive test
+  else
+    [[ `stat -f %u "$1"` = `id -u` ]] && echo 1 || echo 0
+  fi
+}
+
+#
+# Check if I am the owner of a file or a directory
+# The test can also can include all sub files and sub directories if the third argument is -R
+# If not, prompt to chown the file or directory
+# All the content will be recursivly chowned if the third argument is -R
+# Echo check and result if the first argument is -v
+# The fourth argument is an additional echo
+#
+check_chown() {
+  # some security tests before check
+  [[ -n $1 && $1 != '-v' ]] && echo `red 'runtime: check_chown wrong first argument'` && exit 1
+  [[ -n $3 && $3 != '-R' ]] && echo `red 'runtime: check_chown wrong third argument'` && exit 1
+
+  local path=`reduce_path "$2"`
+
+  # echo check if verbose mode
+  [[ $1 = '-v' ]] && echo -n "check `blue "$path"` owner..."
+
+  local check=`check_owner "$2" $3`
+  # echo "check:$check:"
+  # you are not the owner of file(s) or director(y|ies)
+  if [[ -n $check && $check -eq 0 ]]; then
+
+    # echo result if verbose mode
+    [[ $1 = '-v' ]] && notok
+
+    if [[ $3 = '-R' ]]; then
+      echo "you are not the owner of the directory `blue "$path"` or all his content"
+    else
+      local kind='file'
+      [[ -d "$2" ]] && kind='directory'
+      echo "you are not the owner of the $word `blue "$path"`"
+    fi
+
+    [[ -n $4 ]] && echo "$4"
+
+    while true; do
+      echo -n "do you want to `blue 'sudo chown'` it? [Yn]: "
+      read r
+      r=$(echo "$r" | tr '[A-Z]' '[a-z]')
+      case "$r" in
+        y|n) break ;;
+         '') r='y' && break ;;
+      esac
+    done
+    [[ "$r" == 'y' ]] && sudo chown $3 `whoami` "$2"
+
+  # you are he owner of file(s) or director(y|ies)
+  # or the file or directory does not exist
+  else
+    # echo result if verbose mode
+    [[ $1 = '-v' ]] && ok
   fi
 }
 
@@ -204,31 +322,37 @@ check_ruby() {
     fi
   }
   function install_rbenv_and_ruby() {
-    echo "install minimal tarball `blue homebrew` in `blue /usr/local/homebrew`"
+    # echo "install minimal tarball `blue homebrew` in `blue /usr/local/homebrew`"
+
+    check_chown -v /usr/local
+
+    # check it again
+    [[ `check_owner /usr/local` -ne 1 ]] && echo "abort: you must be the owner of `red /usr/local`" && exit 1
+
+    message_delay "install minimal tarball `blue homebrew` in `blue /usr/local/homebrew`"
+
+    exit
     rm -rf /usr/local/homebrew
     mkdir /usr/local/homebrew
     curl -sL https://github.com/mxcl/homebrew/tarball/master | tar xz --strip 1 -C /usr/local/homebrew
-    #
+    # temp path, only valid in this install session
     PATH=/usr/local/homebrew/bin:$PATH
     export PATH
-    echo "install `blue rbenv` with homebrew"
-    sleep 1
+    # install rbenv
+    message_delay "install `blue rbenv` with homebrew"
     echo
     brew install rbenv
-    echo
-    echo "install `blue ruby-build` with homebrew"
-    sleep 1
+    # install ruby-build
+    message_delay "install `blue ruby-build` with homebrew"
     echo
     brew install ruby-build
-    #
-    echo
-    echo "install `blue "ruby 1.9.3-p327"` with rbenv"
-    sleep 1
+    # install ruby 1.9.3
+    message_delay "install `blue "ruby 1.9.3-p327"` with rbenv"
     echo
     eval "$(rbenv init -)"
     rbenv install 1.9.3-p327
     rbenv global 1.9.3-p327
-
+    # check ruby 1.9.3, only valid in this install session
     printf "check `blue ruby`..."
     if [[ `ruby -e "puts RUBY_VERSION >= '1.9.3'"` == 'false' ]]; then
       notok
@@ -593,8 +717,22 @@ clear_backup() {
   fi
 }
 
+
+
 check_git
 check_ruby
+# check_chown 'owner' ~/.rvm -R "this may result some annoying `red 'permissions denied'` problems with nodejs"
+# check_chown '' ~/.rvm
+# check_chown -v ~/.rvm
+# check_chown -v ~/.rvm -R
+# check_chown -v ~/.rvm -R
+# check_chown -v ~/.rvm
+# check_owner ~/.rvm
+# check_owner ~/.rvm2 -R
+# check_owner ~/.rvm/yo -R
+# check_owner ~/.rvm/yo
+# check_owner ~/.rvm/yo
+# check_owner ~/.dotfiles -R
 echo "yeah baby"
 exit
 check_repository
