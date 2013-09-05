@@ -40,7 +40,81 @@ message_delay() {
 }
 
 #
+# Remove a path from the $PATH
+# It does not update the $PATH but just echo a ready to set one
+#
+path_remove() {
+  # convert path to an array
+  tmp=$IFS
+  IFS=:
+  t=($PATH)
+  # remove paths found from the array
+  unset IFS
+  t=(${t[@]%%$1})
+  # echo the result, an array joined with ':'
+  IFS=:
+  echo "${t[*]}"
+  IFS=$tmp
+}
+
+#
+# Echo the index of the first argument inside the $PATH
+# Do nothing if not found
+#
+path_index() {
+  # convert path to an array
+  tmp=$IFS
+  IFS=:
+  t=($PATH)
+  IFS=$tmp
+  # loop and echo index if path found
+  local i=0
+  for p in ${t[@]}; do
+    [[ $p = $1 ]] && echo $i && return
+    i=$((i + 1))
+  done
+}
+
+#
+# Append the first argument to the $PATH
+# Do nothing if not a valid directory or alreay in $PATH
+#
+path_append() {
+  # security test before append
+  [[ ! -d $1 ]] && return
+  # not already in $PATH
+  if [[ -z `path_index $1` ]]; then
+    PATH=$1:$PATH
+    export PATH
+  fi
+}
+
+#
+# By default /usr/local/bin is placed after /usr/bin in the $PATH
+# This function updates the $PATH with /usr/local/bin placed just before /usr/bin
+# It's a temporary path, only valid in this install session
+#
+path_local_first() {
+  local bin=`path_index /usr/bin`
+  # /usr/bin is found before /usr/local/bin
+  if [[ $bin -lt `path_index /usr/local/bin` ]]; then
+    # remove /usr/local/bin from the path and convert path to an array
+    tmp=$IFS
+    IFS=:
+    t=(`path_remove /usr/local/bin`)
+    # replace in the array /usr/bin by /usr/local/bin:/usr/bin
+    t[$bin]='/usr/local/bin:/usr/bin'
+    # echo the result, an array joined with ':'
+    IFS=:
+    PATH=`echo "${t[*]}"`
+    export PATH
+    IFS=$tmp
+  fi
+}
+
+#
 # Try to reduce the path from /Users/username/.dotfiles to ~/.dotfiles
+# This is pure string operation, nothing to do with $PATH
 #
 reduce_path() {
   # if the path is in the user directory ($HOME), reduce it using the shortcut '~'
@@ -149,6 +223,79 @@ check_chown() {
     # echo result if verbose mode
     [[ $1 = '-v' ]] && ok
   fi
+}
+
+check_homebrew() {
+
+  # inner functions
+  function install() {
+    # prompt to chown /usr/local if I am not the owner
+    check_chown -v /usr/local
+
+    # abort after a new check
+    [[ `check_owner /usr/local` -ne 1 ]] && echo "abort: you must be the owner of `red /usr/local`" && exit 1
+
+    message_delay "install minimal `blue homebrew` in `blue /usr/local/homebrew`"
+
+    # clone homebrew with the available git
+    local tmp
+    [[ `type -p git` ]] && tmp=git || tmp=/Developer/usr/bin/git
+
+    # install minimal homebrew (without all repository history)
+    eval "$tmp clone --depth 1 https://github.com/mxcl/homebrew.git /usr/local/homebrew"
+
+    if [[ $? -ne 0 ]]; then
+      echo 'abort: Error with git clone'
+      exit 1
+    fi
+
+    # temp path, only valid in this install session
+    path_append /usr/local/homebrew/bin
+
+    echo -n "check `blue homebrew` install..."
+    # check if brew is now in the path
+    if [[ -z `type -p brew` ]]; then
+      notok
+      echo "abort: the `red "scripted install of homebrew has failed"`. Please do it manually"
+      exit 1
+    else
+      ok
+    fi
+  }
+  function update() {
+    echo -n "update `blue homebrew`..."
+    # brew update: fetch the newest version of Homebrew and all formulae from GitHub using git
+    brew update 1>/dev/null
+    if [[ $? -ne 0 ]]; then
+      notok
+      echo "fail: `red "brew update"` return an error"
+    else
+      ok
+    fi
+  }
+
+  echo -n "check `blue homebrew`..."
+  # homebrew not detected, install it
+  if [[ -z `type -p brew` ]]; then
+    # brew not in the path and also not on the machine
+    if [[ ! -x /usr/local/homebrew/bin/brew ]]; then
+      notok
+      install
+    # it's only a path problem
+    else
+      path_append /usr/local/homebrew/bin
+      ok
+      # update
+    fi
+
+  # homebrew detected, update the git source
+  else
+    ok
+    update
+  fi
+
+  unset -f install
+  unset -f update
 }
 
 #
@@ -271,17 +418,21 @@ copy_files() {
 }
 
 #
-# Check Git. Abort script if not installed
+# Check minimal Git. Abort script if not installed
 #
-check_git() {
+check_minimal_git() {
   printf "check `blue git`..."
+  # git not detected in the $PATH
   if [[ -z `type -p git` ]]; then
-    notok
-    echo 'abort: Git must be installed'
-    browser 'http://git-scm.com/download/mac'
-    sleep 1
-    terminal_frontmost
-    exit 1
+    # git also not installed inside /Developer
+    if [[ ! -x /Developer/usr/bin/git ]]; then
+      notok
+      echo 'abort: Git must be installed'
+      browser 'http://git-scm.com/download/mac'
+      sleep 1
+      terminal_frontmost
+      exit 1
+    fi
   fi
   ok
 }
@@ -290,26 +441,21 @@ check_git() {
 # Check Ruby. Abort script if not installed or try to upgrade if version < 1.9.3
 #
 check_ruby() {
-  printf "check `blue ruby`..."
 
   # inner functions
   function uninstall_rvm() {
     # the ~/.rvm directory must be 'sudo chown' to be deleted
     if [[ -d ~/.rvm ]]; then
-      while true; do
-        echo -n "do you want to `blue 'sudo chown'` the directory `blue "~/.rvm"`? [Yn]: "
-        read r
-        r=$(echo "$r" | tr '[A-Z]' '[a-z]')
-        case "$r" in
-          y|n) break ;;
-           '') r='y' && break ;;
-        esac
-      done
-      [[ "$r" == 'y' ]] && sudo chown -R `whoami` ~/.rvm || true
+      # prompt to chown /usr/local if I am not the owner
+      check_chown -v ~/.rvm -R
+
+      # abort after a new check
+      [[ `check_owner ~/.rvm -R` -ne 1 ]] && echo "abort: you must be the owner of `red "~/.rvm"`" && exit 1
+
+      rm -rf ~/.rvm
     fi
 
     rvm implode
-    rm -rf ~/.rvm
     rm -rf ~/.rvmrc
     rm -rf /etc/rvmrc
     unset -f rvm
@@ -321,57 +467,45 @@ check_ruby() {
       rm -f $tmp
     fi
   }
-  function install_rbenv_and_ruby() {
-    # echo "install minimal tarball `blue homebrew` in `blue /usr/local/homebrew`"
-
-    check_chown -v /usr/local
-
-    # check it again
-    [[ `check_owner /usr/local` -ne 1 ]] && echo "abort: you must be the owner of `red /usr/local`" && exit 1
-
-    message_delay "install minimal tarball `blue homebrew` in `blue /usr/local/homebrew`"
-
-    exit
-    rm -rf /usr/local/homebrew
-    mkdir /usr/local/homebrew
-    curl -sL https://github.com/mxcl/homebrew/tarball/master | tar xz --strip 1 -C /usr/local/homebrew
-    # temp path, only valid in this install session
-    PATH=/usr/local/homebrew/bin:$PATH
-    export PATH
-    # install rbenv
-    message_delay "install `blue rbenv` with homebrew"
-    echo
-    brew install rbenv
-    # install ruby-build
-    message_delay "install `blue ruby-build` with homebrew"
-    echo
-    brew install ruby-build
-    # install ruby 1.9.3
-    message_delay "install `blue "ruby 1.9.3-p327"` with rbenv"
-    echo
-    eval "$(rbenv init -)"
-    rbenv install 1.9.3-p327
-    rbenv global 1.9.3-p327
-    # check ruby 1.9.3, only valid in this install session
-    printf "check `blue ruby`..."
-    if [[ `ruby -e "puts RUBY_VERSION >= '1.9.3'"` == 'false' ]]; then
+  function check_rbenv_ruby_build() {
+    printf "check `blue rbenv`..."
+    # rbenv not detected, install with homebrew
+    if [[ -z `type -p rbenv` ]]; then
       notok
-      echo "abort: the `red "scripted install of Ruby has failed"`. Please do it manually"
-      exit 1
+      message_delay "install `blue rbenv` with homebrew"
+      brew install rbenv
+    else
+      ok
     fi
-    ok
+
+    printf "check `blue ruby-build`..."
+    # ruby-build not detected, install with homebrew
+    if [[ -z `type -p ruby-build` ]]; then
+      notok
+      message_delay "install `blue ruby-build` with homebrew"
+      brew install ruby-build
+    else
+      ok
+    fi
+
+    # activate rbenv
+    eval "$(rbenv init -)"
   }
 
+  printf "check `blue ruby`..."
+  # no ruby on the machine. Impossible on OS X, but just in case
   if [[ -z `type -p ruby` ]]; then
     notok
     echo 'abort: Ruby must be installed. Version 1.9.3 minimum'
     exit 1
+  # ruby detected
   else
+    # the version installed is lower than 1.9.3
     if [[ `ruby -e "puts RUBY_VERSION >= '1.9.3'"` == 'false' ]]; then
       notok
-      type -p rvm &>/dev/null
+      # type -p rvm &>/dev/null
       # rvm detected, prompt to abort the script or uninstall it
-      if [[ $? -eq 0 ]]; then
+      if [[ -n `type -p rvm` ]]; then
         echo "`red rvm` detected while `blue rbenv` is prefered"
         echo "please choose between:"
         echo " ➜ abort this script to install ruby manually with rvm"
@@ -392,30 +526,29 @@ check_ruby() {
           uninstall_rvm
         fi
       fi
-      local version=`ruby -e "puts RUBY_VERSION"`
-      type -p rbenv &>/dev/null
-      # rbenv detected, abort with a message to upgrade Ruby
-      if [[ $? -eq 0 ]]; then
-        echo "abort: Ruby `red $version` detected. Version 1.9.3 minimum"
-        echo "abort: please execute `blue "rbenv install 1.9.3-p327"`"
+
+      check_rbenv_ruby_build
+
+      # install ruby 1.9.3
+      message_delay "install `blue "ruby 1.9.3-p327"` with rbenv"
+      rbenv install 1.9.3-p327
+      rbenv global 1.9.3-p327
+
+      # check ruby 1.9.3 intall, only valid in this install session
+      printf "check `blue ruby`..."
+      if [[ `ruby -e "puts RUBY_VERSION >= '1.9.3'"` == 'false' ]]; then
+        notok
+        echo "abort: the `red "scripted install of Ruby has failed"`. Please do it manually"
         exit 1
-      else
-        type -p brew &>/dev/null
-        # homebrew detected, abort with a message to upgrade Ruby
-        if [[ $? -eq 0 ]]; then
-          echo "abort: Ruby `red $version` detected. Version 1.9.3 minimum"
-          echo "abort: please execute `blue "brew install ruby"`"
-          exit 1
-        else
-          install_rbenv_and_ruby
-        fi
       fi
+      ok
+    # ruby 1.9.3 or higher detected
     else
       ok
     fi
   fi
   unset -f uninstall_rvm
-  unset -f install_rbenv_and_ruby
+  unset -f check_rbenv_ruby_build
 }
 
 #
@@ -452,6 +585,7 @@ check_repository() {
       echo 'abort: Error with git clone'
       exit 1
     fi
+    rm -f $tmp
     ok
   fi
 }
@@ -460,7 +594,6 @@ check_repository() {
 # Update existing Phantomjs or prompt to install it. Skip automatically after 7 seconds
 #
 check_phantomjs() {
-  echo -n "check `blue phantomjs`..."
 
   # inner functions
   function url() {
@@ -484,6 +617,7 @@ check_phantomjs() {
     echo "installed `blue "phantomjs $version"`"
   }
 
+  echo -n "check `blue phantomjs`..."
   # not installed
   if [ -z `type -p phantomjs` ]; then
     notok
@@ -718,9 +852,139 @@ clear_backup() {
 }
 
 
+check_git() {
+  echo -n "check `blue "homebrew git"`..."
+  if [[ -z `brew ls | grep ^git$` ]]; then
+    notok
+    message_delay "install `blue git` with homebrew"
+    brew install git
+  else
+    ok
+    echo "upgrade `blue "homebrew git"`"
+    brew upgrade git &>/dev/null
+  fi
+}
 
+check_rvm() {
+
+  # inner function
+  function uninstall() {
+    # the ~/.rvm directory must be 'sudo chown' to be deleted
+    if [[ -d ~/.rvm ]]; then
+      # prompt to chown /usr/local if I am not the owner
+      check_chown -v ~/.rvm -R
+
+      # abort after a new check
+      [[ `check_owner ~/.rvm -R` -ne 1 ]] && echo "abort: you must be the owner of `red "~/.rvm"`" && exit 1
+
+      rm -rf ~/.rvm
+    fi
+
+    rvm implode
+    rm -rf ~/.rvmrc
+    rm -rf /etc/rvmrc
+    unset -f rvm
+
+    # if uncommented line found in ~/.bash_profile to source rvm, comment it
+    if [[ -f ~/.bash_profile && `egrep '^[^#].*\.rvm/scripts/rvm' ~/.bash_profile` ]]; then
+      local tmp=`mktemp /tmp/rvm.XXXXX`
+      sed '/^.*\.rvm\/scripts\/rvm.*/ s/^/#/' ~/.bash_profile > $tmp && mv $tmp ~/.bash_profile
+      rm -f $tmp
+    fi
+  }
+
+  echo -n "check `blue rvm`..."
+  # rvm detected, prompt to abort the script or uninstall it
+  if [[ -n `type -p rvm` ]]; then
+    notok
+    echo "`red rvm` detected while `blue rbenv` is prefered"
+    echo "please choose between:"
+    echo " ➜ uninstall `red rvm` then install `blue rbenv`"
+    echo " ➜ abort this script"
+    while true; do
+      echo -e -n "uninstall or abort? [aU]: "
+      read r
+      r=$(echo "$r" | tr '[A-Z]' '[a-z]')
+      case "$r" in
+        a|u) break ;;
+         '') r='u' && break ;;
+      esac
+    done
+    if [[ "$r" == 'a' ]]; then
+      echo 'abort: Script aborted by user'
+      exit 1
+    else
+      uninstall
+    fi
+  else
+    ok
+  fi
+}
+
+check_rbenv() {
+  echo -n "check `blue "homebrew rbenv"`..."
+  if [[ -z `brew ls | grep ^rbenv$` ]]; then
+    notok
+    message_delay "install `blue rbenv` with homebrew"
+    brew install rbenv
+  else
+    ok
+    echo "upgrade `blue "homebrew rbenv"`"
+    brew upgrade rbenv &>/dev/null
+  fi
+}
+
+check_ruby_build() {
+  echo -n "check `blue "homebrew ruby-build"`..."
+  if [[ -z `brew ls | grep ^ruby-build$` ]]; then
+    notok
+    message_delay "install `blue ruby-build` with homebrew"
+    brew install ruby-build
+  else
+    ok
+    echo "upgrade `blue "homebrew ruby-build"`"
+    brew upgrade ruby-build &>/dev/null
+  fi
+}
+
+# function check_rbenv_ruby_build() {
+#     printf "check `blue rbenv`..."
+#     # rbenv not detected, install with homebrew
+#     if [[ -z `type -p rbenv` ]]; then
+#       notok
+#       message_delay "install `blue rbenv` with homebrew"
+#       brew install rbenv
+#     else
+#       ok
+#     fi
+
+#     printf "check `blue ruby-build`..."
+#     # ruby-build not detected, install with homebrew
+#     if [[ -z `type -p ruby-build` ]]; then
+#       notok
+#       message_delay "install `blue ruby-build` with homebrew"
+#       brew install ruby-build
+#     else
+#       ok
+#     fi
+
+#     # activate rbenv
+#     eval "$(rbenv init -)"
+#   }
+
+path_local_first
+check_minimal_git
+check_homebrew
 check_git
-check_ruby
+
+check_rvm
+check_rbenv
+check_ruby_build
+
+# echo $PATH
+
+
+# check_ruby
 # check_chown 'owner' ~/.rvm -R "this may result some annoying `red 'permissions denied'` problems with nodejs"
 # check_chown '' ~/.rvm
 # check_chown -v ~/.rvm
