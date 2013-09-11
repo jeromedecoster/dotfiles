@@ -203,6 +203,46 @@ check_chown() {
 }
 
 #
+# Dirty hack to disable homebrew warning 'It appears you have MacPorts or Fink installed'
+# when you install or upgrade a formula
+#
+brew() {
+  if [[ `type -P brew` ]]; then
+    local path=`type -P brew`
+
+    # if 'brew install' or 'brew upgrade' are invoked
+    if [[ $1 == 'install' || $1 == 'upgrade' ]]; then
+      local cwd="$(pwd)"
+      local prefix=`eval "$path --prefix"`
+      local file=`echo $prefix/Library/Homebrew/cmd/install.rb`
+
+      # if uncommented line found in Homebrew/cmd/install.rb to check macports, comment it
+      if [[ -f $file && `egrep '^[[:blank:]]+check_macports$' $file` ]]; then
+        local tmp=`mktemp /tmp/homebrew.XXXXX`
+        sed -E '/^[[:blank:]]+check_macports$/ s/^/#/' $file > $tmp && mv $tmp $file
+        rm -f $tmp
+
+        # execute brew
+        eval "$path $@"
+
+        # then revert the commented file
+        cd "$prefix"
+        git checkout $file
+        cd "$cwd"
+      # fallback, but normally you should never go here
+      else
+        eval "$path $@"
+      fi
+    # other commands
+    else
+      eval "$path $@"
+    fi
+  else
+    `echo 'brew: command not found' >&2; exit 127`
+  fi
+}
+
+#
 # Check if a directory is empty, the test includes the hidden files. Return 1 if empty, otherwise return nothing
 #
 empty_directory() {
@@ -556,7 +596,7 @@ path_local_first() {
 check_minimal_git() {
   printf "check `blue git`..."
   # git not detected in the $PATH
-  if [[ -z `type -p git` ]]; then
+  if [[ -z `type -P git` ]]; then
     # git also not installed inside /Developer
     if [[ ! -x /Developer/usr/bin/git ]]; then
       notok
@@ -588,7 +628,7 @@ check_homebrew() {
 
     # clone homebrew with the available git
     local tmp
-    [[ `type -p git` ]] && tmp=git || tmp=/Developer/usr/bin/git
+    [[ `type -P git` ]] && tmp=git || tmp=/Developer/usr/bin/git
 
     # install minimal homebrew (without all repository history)
     eval "$tmp clone --depth 1 https://github.com/mxcl/homebrew.git /usr/local/homebrew"
@@ -603,7 +643,7 @@ check_homebrew() {
 
     echo -n "check `blue homebrew` install..."
     # check if brew is now in the path
-    if [[ -z `type -p brew` ]]; then
+    if [[ -z `type -P brew` ]]; then
       notok
       echo "abort: the `red "scripted install of homebrew has failed"`. Please do it manually"
       exit 1
@@ -614,7 +654,9 @@ check_homebrew() {
   function update() {
     echo -n "update `blue homebrew`..."
     # brew update: fetch the newest version of Homebrew and all formulae from GitHub using git
-    brew update 1>/dev/null
+    local path=`type -P brew`
+    # executes homebrew with full path to not call the workaround 'brew' function defined above
+    eval "$path update 1>/dev/null"
     if [[ $? -ne 0 ]]; then
       notok
       echo "fail: `red "brew update"` return an error"
@@ -625,7 +667,7 @@ check_homebrew() {
 
   echo -n "check `blue homebrew`..."
   # homebrew not detected, install it
-  if [[ -z `type -p brew` ]]; then
+  if [[ -z `type -P brew` ]]; then
     # brew not in the path and also not on the machine
     if [[ ! -x /usr/local/homebrew/bin/brew ]]; then
       notok
@@ -634,7 +676,7 @@ check_homebrew() {
     else
       path_append /usr/local/homebrew/bin
       ok
-      # update
+      update
     fi
 
   # homebrew detected, update the git source
@@ -657,16 +699,24 @@ check_formula() {
   for i in ${tmp[@]}; do
     [[ $i == $1 ]] && break
   done
+
   # $1 not found, install it
   if [[ $i != $1 ]]; then
     notok
     message_delay "install `blue $1` with homebrew"
+    # warning: brew is a workaround function defined above
     brew install $1
   # $1 found, upgrade it
   else
-    ok
-    echo "upgrade `blue "homebrew $1"`"
-    brew upgrade $1 &>/dev/null
+    # upgrade only if the formula is outdated
+    if [[ `brew outdated | egrep ^$1$` ]]; then
+      notok
+      echo "upgrade `blue "homebrew $1"`"
+      # warning: brew is a workaround function defined above
+      brew upgrade $1 &>/dev/null
+    else
+      ok
+    fi
   fi
 }
 
@@ -733,6 +783,18 @@ check_rvm() {
 }
 
 #
+# Rbenv must be activated
+#
+activate_rbenv() {
+  # rbenv executable found but _rbenv is not yet a function
+  if [[ `type -P rbenv` && -z `type -t _rbenv` ]]; then
+    # init rbenv
+    echo "activate `blue rbenv`"
+    eval "`rbenv init -`"
+  fi
+}
+
+#
 # Check if latest Ruby 1.9.3 and 2.0.0 patch version are installed with rbenv
 # Install the missing versions then activates the newest version according to the previous version used
 #
@@ -756,6 +818,7 @@ check_ruby() {
     notok
     message_delay "install `blue "ruby $ver193"` with rbenv"
     rbenv install $ver193
+    rbenv rehash
   else
     ok
   fi
@@ -765,7 +828,12 @@ check_ruby() {
   if [[ -z `installed $ver200` ]]; then
     notok
     message_delay "install `blue "ruby $ver200"` with rbenv"
-    rbenv install $ver200
+    # compile ruby 2 works on Snow Leopard but fails on Mountain Lion
+    # workaround: https://github.com/sstephenson/ruby-build/issues/377#issuecomment-23635029
+    local path=`brew --prefix`/Cellar/openssl
+    local directory=`ls -1 $path | egrep ^[[:digit:]] | sort -n -r | head -n 1`
+    RUBY_CONFIGURE_OPTS=--with-openssl-dir=$path/$directory rbenv install $ver200
+    rbenv rehash
   else
     ok
   fi
@@ -787,12 +855,40 @@ check_ruby() {
 # Update existing ~/.dotfiles repository or clone it for the first time
 #
 check_dotfiles() {
+
+  # inner function
+  function dotfiles_backup() {
+    local name=.dotfiles-backup-`date +%Y-%m-%d--%H-%M-%S`
+    mv ~/.dotfiles ~/$name &>/dev/null
+    if [[ $? -ne 0 ]]; then
+      echo "abort: Existing `red "~/.dotfiles"` can not be backuped"
+      exit 1
+    fi
+    echo "backup `blue "~/.dotfiles"` as `blue "~/$name"`"
+  }
+
+  local cwd="$(pwd)"
+  if [[ -d ~/.dotfiles ]]; then
+    # check directory integrity
+    cd ~/.dotfiles
+    git status &>/dev/null
+    # not a git repo
+    if [[ $? -ne 0 ]]; then
+      dotfiles_backup
+    # a git repo
+    else
+      git remote -v | grep ^origin.*jeromedecoster/dotfiles.*fetch &>/dev/null
+      # but not the same git repo
+      [[ $? -ne 0 ]] && dotfiles_backup
+    fi
+  fi
+  cd "$cwd"
+
   # capture error in temp file
   local tmp=`mktemp /tmp/git.XXXXX`
 
   if [[ -d ~/.dotfiles ]]; then
     printf "update `blue "~/.dotfiles"` repository..."
-    local cwd="$(pwd)"
     cd ~/.dotfiles
     # git pull with redirect error in the temp file
     git pull --quiet 2>$tmp
@@ -821,6 +917,8 @@ check_dotfiles() {
   # delete temp file
   rm -f $tmp
   ok
+
+  unset -f dotfiles_backup
 }
 
 user_files() {
@@ -877,17 +975,9 @@ user_files() {
   copy ~/.dotfiles/osx/user/.bash_profile
   copy ~/.dotfiles/osx/user/.inputrc
 
-  local who=`whoami`
-  local a=@
-  local c=com
-  local d=deco
-  local g=git
-  local h=hub
-  local j=jer
-  local o=ome
-  local s=ster
-  local w=work
-  if [[ $who == "$j$o.$d$s" ]]; then
+  local h=hub a=@ o=ome c=com d=deco
+  local s=ster g=git w=work j=jer
+  if [[ `whoami` == "$j$o.$d$s" ]]; then
     git_config user.name "$j$o${a}$w"
     git_config user.email "$g$h$a$j$o$d$s.$c"
   else
@@ -911,7 +1001,9 @@ check_formula git
 
 check_rvm
 check_formula rbenv
+activate_rbenv
 check_formula ruby-build
+check_formula openssl
 check_ruby
 
 check_formula phantomjs

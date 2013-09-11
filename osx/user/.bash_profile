@@ -33,3 +33,41 @@ if [[ `type -P rbenv` && -z `type -t _rbenv` ]]; then
   # init rbenv
   eval "`rbenv init -`"
 fi
+
+# dirty hack to disable homebrew warning 'It appears you have MacPorts or Fink installed'
+# when you install or upgrade a formula
+brew() {
+  if [[ `type -P brew` ]]; then
+    local path=`type -P brew`
+
+    # if 'brew install' or 'brew upgrade' are invoked
+    if [[ $1 == 'install' || $1 == 'upgrade' ]]; then
+      local cwd="$(pwd)"
+      local prefix=`eval "$path --prefix"`
+      local file=`echo $prefix/Library/Homebrew/cmd/install.rb`
+
+      # if uncommented line found in Homebrew/cmd/install.rb to check macports, comment it
+      if [[ -f $file && `egrep '^[[:blank:]]+check_macports$' $file` ]]; then
+        local tmp=`mktemp /tmp/homebrew.XXXXX`
+        sed -E '/^[[:blank:]]+check_macports$/ s/^/#/' $file > $tmp && mv $tmp $file
+        rm -f $tmp
+
+        # execute brew
+        eval "$path $@"
+
+        # then revert the commented file
+        cd "$prefix"
+        git checkout $file
+        cd "$cwd"
+      # fallback, but normally you should never go here
+      else
+        eval "$path $@"
+      fi
+    # other commands
+    else
+      eval "$path $@"
+    fi
+  else
+    `echo 'brew: command not found' >&2; exit 127`
+  fi
+}
