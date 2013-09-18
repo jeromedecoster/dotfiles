@@ -749,6 +749,31 @@ check_dotfiles() {
       [[ $? -ne 0 ]] && dotfiles_backup
     fi
   fi
+  if [[ -d ~/.dotfiles ]]; then
+    # revert locally modified files
+    cd ~/.dotfiles
+    local oIFS=$IFS
+    IFS=$'\n'
+    local files=(`git diff --name-status | grep "^M" | sed "s/^M[[:blank:]]//"`)
+    IFS=$oIFS
+    if [[ ${#files[@]} -ne 0 ]]; then
+      # create backup folder and define $backup
+      create_backup
+
+      # backup files
+      local name lng path
+      for f in ${files[@]}; do
+        name=${f##*/}
+        path=${f:0:$((${#f} - ${#name}))}
+        [[ -n $path ]] && mkdir -p "$backup/$path"
+        mv ~/.dotfiles/$f "$backup/$path"
+        path=`reduce_path "$backup/$path"`
+        echo "backup `blue "~/.dotfiles/$f"` into `blue "$path"`"
+      done
+      # silently revert git repo, now ready to pull
+      git reset --hard &>/dev/null
+    fi
+  fi
   cd "$cwd"
 
   # capture error in temp file
