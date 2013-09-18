@@ -84,17 +84,6 @@ function mk() {
     fi
 }
 
-# switch the prompt
-# example, switch to the basic prompt: prompt
-# example, switch to the advanced prompt: prompt -a
-function prompt() {
-    if [[ $1 == '-a' ]]; then
-        PROMPT_COMMAND="prompt_advanced"
-    else
-        PROMPT_COMMAND="prompt_basic"
-    fi
-}
-
 # uninstall a part or all of the dotfiles components
 # usefull for the development and tests
 function undot() {
