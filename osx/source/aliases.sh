@@ -5,10 +5,12 @@ alias ...="cd ../.."
 alias s="subl"
 # browse is my .dotfiles/osx/bin/browse executable
 alias b="browse"
+# manh is my .dotfiles/osx/bin/manh executable
+alias mh="manh"
 
 # git aliases...
 alias ga="git add"
-# add all files (also when not in the repository root) 
+# add all files (also when not in the repository root)
 alias gaa="git rev-parse --show-toplevel | xargs git add"
 alias gb="git branch"
 # delete a branch

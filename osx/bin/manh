@@ -4,77 +4,77 @@ require 'pathname'
 require 'fileutils'
 
 def exit_msg msg
-    $stderr.puts msg
-    exit 1
+  $stderr.puts msg
+  exit 1
 end
 
 # Open3.capture3 comes with Ruby 1.9.2
 exit_msg 'error: Ruby 1.9.2 minimum required' if RUBY_VERSION < '1.9.2'
 
 def path uri
-    Pathname.new(uri).expand_path
+  Pathname.new(uri).expand_path
 end
 
 # open with ~/.dotfiles/osx/bin/browse
 def browse uri
-    exit_msg 'error: browse is required' if `type -P browse`.size == 0
-    `browse "#{uri}"`
+  exit_msg 'error: browse is required' if `type -P browse`.size == 0
+  `browse "#{uri}"`
 end
 
 if ARGV.size == 1
-    cmd    = ARGV[0]
-    folder = path '~/.dotfiles/.cache/manh'
-    file   = path "#{folder}/#{cmd}.html"
-    
-    if file.exist?
-        browse file
-        exit 0
-    end
+  cmd    = ARGV[0]
+  folder = path '~/.dotfiles/.cache/manh'
+  file   = path "#{folder}/#{cmd}.html"
 
-    o, e, s = Open3.capture3 "man #{cmd} 2>&1"
-    # puts "o:#{o}"
-    # puts "e:#{e}"
-    # puts "s:#{s.success?}"
-    exit_msg o unless s.success?
+  if file.exist?
+    browse file
+    exit 0
+  end
 
-    exit_msg 'error: man2html is required' if `type -P man2html`.size == 0
-    
-    txt = `man #{cmd} | man2html -bare -nodepage`
+  o, e, s = Open3.capture3 "man #{cmd} 2>&1"
+  # puts "o:#{o}"
+  # puts "e:#{e}"
+  # puts "s:#{s.success?}"
+  exit_msg o unless s.success?
 
-    txt.gsub! /.*<B>(.*)<\/B>.*(?=<H2>NAME)/m, "<H1>\\1</H1>\n"
-    txt.gsub! /[\s\n]+<\/PRE>/m, "\n</PRE>"
-    txt.gsub! /<H2>STANDARDS.*/m, ''
-    txt.gsub! /<H2>HISTORY.*/m, ''
-    txt.gsub! /<H2>AUTHORS*.*/m, ''
-    txt.gsub! /<H2>BUGS*.*/m, ''
+  exit_msg 'error: man2html is required' if `type -P man2html`.size == 0
 
-    txt =<<-EOF
+  txt = `man #{cmd} | man2html -bare -nodepage`
+
+  txt.gsub! /.*<B>(.*)<\/B>.*(?=<H2>NAME)/m, "<H1>\\1</H1>\n"
+  txt.gsub! /[\s\n]+<\/PRE>/m, "\n</PRE>"
+  txt.gsub! /<H2>STANDARDS.*/m, ''
+  txt.gsub! /<H2>HISTORY.*/m, ''
+  txt.gsub! /<H2>AUTHORS*.*/m, ''
+  txt.gsub! /<H2>BUGS*.*/m, ''
+
+  txt =<<-EOF
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <link href="style.css" rel="stylesheet" type="text/css">
+  <link href="manh.css" rel="stylesheet" type="text/css">
 </head>
 <body>
 <div id="content">
 #{txt}</div></HTML>
 EOF
 
-    folder.mkpath
-    File.open(file, 'w') {|f| f.write(txt) }
+  folder.mkpath
+  File.open(file, 'w') {|f| f.write(txt) }
 
-    # copy stylesheet and fonts if needed
-    # the webfonts won't work in Firefox if they are not
-    # in the same folder than the HTML file
-    src = path '~/.dotfiles/osx/manh'
-    Dir.glob("#{src}/*").each do |f|
-        unless File.exist? "#{folder}/#{path(f).basename}"
-            FileUtils.cp f, folder
-        end
+  # copy stylesheet and fonts if needed
+  # the webfonts won't work in Firefox if they are not
+  # in the same folder than the HTML file
+  src = path '~/.dotfiles/osx/conf'
+  %w{gbold.ttf gbold.woff gbook.ttf gbook.woff manh.css}.each do |f|
+    unless File.exist? "#{folder}/#{f}"
+      FileUtils.cp "#{src}/#{f}", folder
     end
+  end
 
-    browse file
-    exit 0
+  browse file
+  exit 0
 else
-    exit_msg 'usage: manh command'
+  exit_msg 'usage: manh command'
 end
