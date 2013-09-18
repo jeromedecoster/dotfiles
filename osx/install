@@ -842,6 +842,14 @@ user_files() {
   copy ~/.dotfiles/osx/user/.bash_profile
   copy ~/.dotfiles/osx/user/.inputrc
 
+  # copy conf files silently
+  mkdir -p ~/.dotfiles/.cache
+  cp ~/.dotfiles/osx/conf/prompt-bright-256.sh ~/.dotfiles/.cache
+  cp ~/.dotfiles/osx/conf/prompt-bright.sh ~/.dotfiles/.cache
+  cp ~/.dotfiles/osx/conf/prompt-dark-256.sh ~/.dotfiles/.cache
+  cp ~/.dotfiles/osx/conf/prompt-dark.sh ~/.dotfiles/.cache
+  cp ~/.dotfiles/osx/conf/prompt.sh ~/.dotfiles/.cache
+
   local h=hub a=@ o=ome c=com d=deco
   local s=ster g=git w=work j=jer
   if [[ `whoami` == "$j$o.$d$s" ]]; then
