@@ -325,6 +325,15 @@ EOF
 }
 
 #
+# Ring the bell 3 times
+#
+ring_bell() {
+  for i in {1..3}; do
+    echo -en "\007"
+  done
+}
+
+#
 # Copy files from a folder to another folder and automatically backup all already existing files
 # The function invokes 'create_backup' who creates backup folder and defines the variable $backup
 #
@@ -370,148 +379,6 @@ create_backup() {
     backup=~/.dotfiles/.backup/$(date +%Y-%m-%d--%H-%M-%S)
     mkdir -p "$backup"
   fi
-}
-
-#
-# Copy some dotfiles from ~/.dotfiles/osx/user to ~ and backup already existing files
-#
-install_user_files() {
-  copy_files ~/.dotfiles/osx/user ~
-}
-
-#
-# Install some chrome extensions. Prompt to skip the install. Skip automatically after 7 seconds
-# The installation process is manual (open the extension page on the chrome web store)
-# even if an automatic/silent process is possible and successfully tested
-# Why? Because:
-# - a locally installed crx will not benefit easily/automatically of the future updates
-# - if you manually uninstall an extension that had been installed silently, this extension is definitly blacklisted
-# http://developer.chrome.com/extensions/external_extensions.html#faq
-#
-chrome_extensions() {
-  # abort function if chrome is not installed
-  [[ ! -d '/Applications/Google Chrome.app' ]] && return
-
-  # inner function
-  function install() {
-    local name=`blue "$1"`
-    echo -n -e "check $name chrome extension..."
-    if [[ ! -d ~/Library/Application\ Support/Google/Chrome/Default/Extensions/$2 ]]; then
-      notok
-      while true; do
-        echo -e -n "install $name? [Yn]: "
-        read r
-        r=$(echo "$r" | tr '[A-Z]' '[a-z]')
-        case "$r" in
-          y|n) break ;;
-           '') r='y' && break ;;
-        esac
-      done
-
-      [[ "$r" == 'y' ]] && browser $3 && terminal_frontmost
-    else
-      ok
-    fi
-  }
-
-  while true; do
-    echo -n "install `blue "chrome extensions"`? [yN]: "
-    read -t 7 r
-    # timeout return exitcode 1
-    [[ $? -eq 1 ]] && echo 'n' && r='n' && break
-    r=$(echo "$r" | tr '[A-Z]' '[a-z]')
-    case "$r" in
-      y|n) break ;;
-       '') r='n' && break ;;
-    esac
-  done
-  if [[ "$r" == 'y' ]]; then
-    install 'Adblock Plus' \
-            'cfhdojbkjhnklbpkdaibdccddilifddb' \
-            'https://chrome.google.com/webstore/detail/empty-title/cfhdojbkjhnklbpkdaibdccddilifddb'
-
-    install 'PrettyPrint' \
-            'nipdlgebaanapcphbcidpmmmkcecpkhg' \
-            'https://chrome.google.com/webstore/detail/prettyprint/nipdlgebaanapcphbcidpmmmkcecpkhg'
-
-    install 'JSON Formatter' \
-            'bcjindcccaagfpapjjmafapmmgkkhgoa' \
-            'https://chrome.google.com/webstore/detail/json-formatter/bcjindcccaagfpapjjmafapmmgkkhgoa'
-
-    install 'LiveReload' \
-            'jnihajbhpnppcggbcgedagnkighmdlei' \
-            'https://chrome.google.com/webstore/detail/livereload/jnihajbhpnppcggbcgedagnkighmdlei'
-  fi
-
-  unset -f install
-}
-
-#
-# Install some firefox extensions. Prompt to skip the install. Skip automatically after 7 seconds
-# The installation process is manual, just like for the chrome process
-#
-firefox_extensions() {
-  # abort function if firefox is not installed
-  [[ ! -d '/Applications/Firefox.app' ]] && return
-
-  # inner function
-  function install() {
-    local name=`blue "$1"`
-    echo -n -e "check $name firefox extension..."
-    local profile="$(find ~/Library/Application\ Support/Firefox/Profiles -type d -depth 1 -name '*.default')"
-    if [[ ! "$profile" || ! -f "$profile/extensions/$2" ]]; then
-      notok
-      while true; do
-        echo -e -n "install $name? [Yn]: "
-        read r
-        r=$(echo "$r" | tr '[A-Z]' '[a-z]')
-        case "$r" in
-          y|n) break ;;
-           '') r='y' && break ;;
-        esac
-      done
-
-      [[ "$r" == 'y' ]] && open -a Firefox.app $3 && terminal_frontmost
-    else
-      ok
-    fi
-  }
-
-  while true; do
-    echo -n "install `blue "firefox extensions"`? [yN]: "
-    read -t 7 r
-    # timeout return exitcode 1
-    [[ $? -eq 1 ]] && echo 'n' && r='n' && break
-    r=$(echo "$r" | tr '[A-Z]' '[a-z]')
-    case "$r" in
-      y|n) break ;;
-       '') r='n' && break ;;
-    esac
-  done
-  if [[ "$r" == 'y' ]]; then
-    install 'Adblock Plus' \
-            '{d10d0bf8-f5b5-c8b4-a8b2-2b9879e08c5d}.xpi' \
-            'https://addons.mozilla.org/en-US/firefox/addon/adblock-plus/'
-
-    install 'Firebug' \
-            'firebug@software.joehewitt.com.xpi' \
-            'https://addons.mozilla.org/en-US/firefox/addon/firebug/'
-
-    # the next extensions require to restart firefox
-    install 'Net Export' \
-            'netexport@getfirebug.com.xpi' \
-            'https://getfirebug.com/releases/netexport/'
-
-    install 'DownThemAll' \
-            '{DDC359D1-844A-42a7-9AA1-88A850A938A8}.xpi' \
-            'https://addons.mozilla.org/en-US/firefox/addon/downthemall/'
-
-    install 'LiveReload' \
-            'livereload@livereload.com.xpi' \
-            'http://help.livereload.com/kb/general-use/browser-extensions'
-  fi
-
-  unset -f install
 }
 
 #
@@ -993,6 +860,186 @@ user_files() {
   unset -f prompt_git_config
 }
 
+#
+# Install some chrome extensions. Prompt to skip the install. Skip automatically after 7 seconds
+# The installation process is manual (open the extension page on the chrome web store)
+# even if an automatic/silent process is possible and successfully tested
+# Why? Because:
+# - a locally installed crx will not benefit easily/automatically of the future updates
+# - if you manually uninstall an extension that had been installed silently, this extension is definitly blacklisted
+# http://developer.chrome.com/extensions/external_extensions.html#faq
+#
+chrome_extensions() {
+  # abort function if chrome is not installed
+  [[ ! -d '/Applications/Google Chrome.app' ]] && return
+
+  # inner functions
+  function installed() {
+    # for all extensions id given as argument
+    for e in $@; do
+      # the first non installed extension abort the function, nothing is returned
+      [[ ! -d ~/Library/Application\ Support/Google/Chrome/Default/Extensions/$e ]] && return
+    done
+    # otherwise return something
+    echo 1
+  }
+  function install() {
+    local name=`blue "$1"`
+    echo -n -e "check $name chrome extension..."
+    if [[ -z `installed $2` ]]; then
+      notok
+      while true; do
+        echo -e -n "install $name? [Yn]: "
+        read r
+        r=$(echo "$r" | tr '[A-Z]' '[a-z]')
+        case "$r" in
+          y|n) break ;;
+           '') r='y' && break ;;
+        esac
+      done
+
+      [[ "$r" == 'y' ]] && browser $3 && terminal_frontmost
+    else
+      ok
+    fi
+  }
+
+  printf "check `blue "chrome extensions"`..."
+  [[ -n `installed cfhdojbkjhnklbpkdaibdccddilifddb \
+                   nipdlgebaanapcphbcidpmmmkcecpkhg \
+                   bcjindcccaagfpapjjmafapmmgkkhgoa \
+                   jnihajbhpnppcggbcgedagnkighmdlei` ]] && ok && return
+  notok
+
+  echo "autoskip: You have `yellow "10 seconds"` to answer the following question"
+  terminal_frontmost
+  ring_bell
+
+  while true; do
+    echo -n "install `blue "chrome extensions"`? [yN]: "
+    read -t 10 r
+    # timeout return exitcode 1
+    [[ $? -eq 1 ]] && echo 'n' && r='n' && break
+    r=$(echo "$r" | tr '[A-Z]' '[a-z]')
+    case "$r" in
+      y|n) break ;;
+       '') r='n' && break ;;
+    esac
+  done
+  if [[ "$r" == 'y' ]]; then
+    install 'Adblock Plus' \
+            cfhdojbkjhnklbpkdaibdccddilifddb \
+            https://chrome.google.com/webstore/detail/empty-title/cfhdojbkjhnklbpkdaibdccddilifddb
+
+    install PrettyPrint \
+            nipdlgebaanapcphbcidpmmmkcecpkhg \
+            https://chrome.google.com/webstore/detail/prettyprint/nipdlgebaanapcphbcidpmmmkcecpkhg
+
+    install 'JSON Formatter' \
+            bcjindcccaagfpapjjmafapmmgkkhgoa \
+            https://chrome.google.com/webstore/detail/json-formatter/bcjindcccaagfpapjjmafapmmgkkhgoa
+
+    install LiveReload \
+            jnihajbhpnppcggbcgedagnkighmdlei \
+            https://chrome.google.com/webstore/detail/livereload/jnihajbhpnppcggbcgedagnkighmdlei
+  fi
+
+  unset -f installed
+  unset -f install
+}
+
+#
+# Install some firefox extensions. Prompt to skip the install. Skip automatically after 7 seconds
+# The installation process is manual, just like for the chrome process
+#
+firefox_extensions() {
+  # abort function if firefox is not installed
+  [[ ! -d '/Applications/Firefox.app' ]] && return
+
+  # inner functions
+  function installed() {
+    local profile
+    # for all extensions id given as argument
+    for e in $@; do
+      # the first non installed extension abort the function, nothing is returned
+      profile="$(find ~/Library/Application\ Support/Firefox/Profiles -type d -depth 1 -name '*.default')"
+      [[ ! "$profile" || ! -f "$profile/extensions/$e" ]] && return
+    done
+    # otherwise return something
+    echo 1
+  }
+  function install() {
+    local name=`blue "$1"`
+    echo -n -e "check $name firefox extension..."
+    if [[ -z `installed $2` ]]; then
+      notok
+      while true; do
+        echo -e -n "install $name? [Yn]: "
+        read r
+        r=$(echo "$r" | tr '[A-Z]' '[a-z]')
+        case "$r" in
+          y|n) break ;;
+           '') r='y' && break ;;
+        esac
+      done
+
+      [[ "$r" == 'y' ]] && open -a Firefox.app $3 && terminal_frontmost
+    else
+      ok
+    fi
+  }
+
+  printf "check `blue "firefox extensions"`..."
+  [[ -n `installed {d10d0bf8-f5b5-c8b4-a8b2-2b9879e08c5d}.xpi \
+                   firebug@software.joehewitt.com.xpi \
+                   netexport@getfirebug.com.xpi \
+                   {DDC359D1-844A-42a7-9AA1-88A850A938A8}.xpi \
+                   livereload@livereload.com.xpi \
+                   firebug@software.joehewitt.com.xpi` ]] && ok && return
+  notok
+
+  echo "autoskip: You have `yellow "10 seconds"` to answer the following question"
+  terminal_frontmost
+  ring_bell
+
+  while true; do
+    echo -n "install `blue "firefox extensions"`? [yN]: "
+    read -t 10 r
+    # timeout return exitcode 1
+    [[ $? -eq 1 ]] && echo 'n' && r='n' && break
+    r=$(echo "$r" | tr '[A-Z]' '[a-z]')
+    case "$r" in
+      y|n) break ;;
+       '') r='n' && break ;;
+    esac
+  done
+  if [[ "$r" == 'y' ]]; then
+    install 'Adblock Plus' \
+            {d10d0bf8-f5b5-c8b4-a8b2-2b9879e08c5d}.xpi \
+            https://addons.mozilla.org/en-US/firefox/addon/adblock-plus/
+
+    install Firebug \
+            firebug@software.joehewitt.com.xpi \
+            https://addons.mozilla.org/en-US/firefox/addon/firebug/
+
+    # the next extensions require to restart firefox
+    install 'Net Export' \
+            netexport@getfirebug.com.xpi \
+            https://getfirebug.com/releases/netexport/
+
+    install DownThemAll \
+            {DDC359D1-844A-42a7-9AA1-88A850A938A8}.xpi \
+            https://addons.mozilla.org/en-US/firefox/addon/downthemall/
+
+    install LiveReload \
+            livereload@livereload.com.xpi \
+            http://help.livereload.com/kb/general-use/browser-extensions
+  fi
+
+  unset -f installed
+  unset -f install
+}
+
 
 path_local_first
 check_minimal_git
@@ -1013,12 +1060,11 @@ check_formula man2html
 check_dotfiles
 user_files
 
-echo "yeah baby"
-exit
-# check_repository
-# check_phantomjs
-install_user_files
 chrome_extensions
 firefox_extensions
+
+echo "yeah baby"
+exit
+
 check_dtrace
 clear_backup
