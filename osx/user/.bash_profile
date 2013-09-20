@@ -22,7 +22,7 @@ export PATH
 unset -f path_remove
 
 # source some files in ~/.dotfiles/source/
-for file in ~/.dotfiles/osx/source/{colors,prompt,aliases,functions,libs,completion}.sh; do
+for file in ~/.dotfiles/osx/source/{colors,prompt,aliases,functions,libs,completion,extras}.sh; do
   # if the file is readable by the user, source it
   [[ -r "$file" ]] && source "$file"
 done

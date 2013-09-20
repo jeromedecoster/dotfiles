@@ -31,7 +31,8 @@ EOF
 add() {
   # if not tracked, git returns an exitcode 1
   git ls-files "$file" --error-unmatch &>/dev/null
-  if [[ $? -ne 0 ]]; then
+  # if not tracked or already tracked but modified
+  if [[ $? -ne 0 || -n `git diff --name-status "$file"` ]]; then
     while true; do
       echo -n -e "add ${STDOUT_HIGHLIGHT}.gitignore${COL_RES} to git? [Yn]: "
       read r

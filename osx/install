@@ -763,7 +763,7 @@ check_dotfiles() {
       create_backup
 
       # backup files
-      local name lng path
+      local name path
       for f in ${files[@]}; do
         name=${f##*/}
         path=${f:0:$((${#f} - ${#name}))}
@@ -772,9 +772,9 @@ check_dotfiles() {
         path=`reduce_path "$backup/$path"`
         echo "backup `blue "~/.dotfiles/$f"` into `blue "$path"`"
       done
-      # silently revert git repo, now ready to pull
-      git reset --hard &>/dev/null
     fi
+    # silently revert git repo, now ready to pull
+    git reset --hard &>/dev/null
   fi
   cd "$cwd"
 
@@ -810,6 +810,10 @@ check_dotfiles() {
   fi
   # delete temp file
   rm -f $tmp
+
+  # if the file extras.sh does not exist, create it
+  # this file is gitignored, it is used to add personal stuff that will be sourced when the terminal starts
+  [[ ! -f ~/.dotfiles/osx/source/extras.sh ]] && touch ~/.dotfiles/osx/source/extras.sh
   ok
 
   unset -f dotfiles_backup
