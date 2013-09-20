@@ -130,12 +130,13 @@ check_owner() {
     local count=`find -E "$1" ! -name .DS_Store \
                               ! -name desktop.ini \
                               ! -name Thumbs.db \
-                              ! -regex ".*/\.DocumentRevisions-V100/*.*" \
-                              ! -regex ".*/\.fseventsd/*.*" \
-                              ! -regex ".*/\.TemporaryItems/*.*" \
-                              ! -regex ".*/\.Trashes/*.*" \
-                              ! -regex ".*/\.Spotlight-V100/*.*" \
-                              ! -regex ".*/\.(git|svn)/*.*" -exec stat -f %u '{}' \; -print \
+                              ! -regex ".*/\.DocumentRevisions-V100($|/.*)" \
+                              ! -regex ".*/\.fseventsd($|/.*)" \
+                              ! -regex ".*/\.Spotlight-V100($|/.*)" \
+                              ! -regex ".*/\.TemporaryItems($|/.*)" \
+                              ! -regex ".*/\.Trash($|/.*)" \
+                              ! -regex ".*/\.Trashes($|/.*)" \
+                              ! -regex ".*/\.(git|svn)($|/.*)" -exec stat -f %u '{}' \; -print \
                   | egrep "^[[:digit:]]+$" \
                   | grep -vc $who`
 
@@ -735,8 +736,8 @@ check_dotfiles() {
   }
 
   local cwd="$(pwd)"
+  # if dotfiles directory already exists, checks his integrity
   if [[ -d ~/.dotfiles ]]; then
-    # check directory integrity
     cd ~/.dotfiles
     git status &>/dev/null
     # not a git repo
@@ -749,8 +750,9 @@ check_dotfiles() {
       [[ $? -ne 0 ]] && dotfiles_backup
     fi
   fi
+  # if dotfiles directory already exists, revert locally modified files
+  # it prevents the merge warnings with 'git pull'
   if [[ -d ~/.dotfiles ]]; then
-    # revert locally modified files
     cd ~/.dotfiles
     local oIFS=$IFS
     IFS=$'\n'
@@ -867,13 +869,13 @@ user_files() {
   copy ~/.dotfiles/osx/user/.bash_profile
   copy ~/.dotfiles/osx/user/.inputrc
 
-  # copy conf files silently
+  # copy config files silently
   mkdir -p ~/.dotfiles/.cache
-  cp ~/.dotfiles/osx/conf/prompt-bright-256.sh ~/.dotfiles/.cache
-  cp ~/.dotfiles/osx/conf/prompt-bright.sh ~/.dotfiles/.cache
-  cp ~/.dotfiles/osx/conf/prompt-dark-256.sh ~/.dotfiles/.cache
-  cp ~/.dotfiles/osx/conf/prompt-dark.sh ~/.dotfiles/.cache
-  cp ~/.dotfiles/osx/conf/prompt.sh ~/.dotfiles/.cache
+  cp ~/.dotfiles/osx/config/terminal-bright-256.sh ~/.dotfiles/.cache
+  cp ~/.dotfiles/osx/config/terminal-bright.sh ~/.dotfiles/.cache
+  cp ~/.dotfiles/osx/config/terminal-dark-256.sh ~/.dotfiles/.cache
+  cp ~/.dotfiles/osx/config/terminal-dark.sh ~/.dotfiles/.cache
+  cp ~/.dotfiles/osx/config/terminal.sh ~/.dotfiles/.cache
 
   local h=hub a=@ o=ome c=com d=deco
   local s=ster g=git w=work j=jer

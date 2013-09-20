@@ -1,3 +1,9 @@
+# forces the 256 colors mode in iTerm
+if [[ $TERM_PROGRAM == 'iTerm.app' && $TERM != 'xterm-256color' ]]; then
+  TERM=xterm-256color
+  export TERM
+fi
+
 # define global variable, value must be 8 in Terminal or 256 in iTerm
 TERM_COLORS=`tput colors`
 export TERM_COLORS
@@ -169,3 +175,17 @@ else
   COL_GRY='\033[0;37m'; export COL_GRY
 fi
 COL_RES='\033[0m'; export COL_RES
+
+# source the terminal variables
+source ~/.dotfiles/.cache/terminal.sh
+# terminal with 256 colors
+if [[ $TERM_COLORS -eq 256 ]]; then
+  [[ $TERM_BACKGROUND_BRIGHTNESS -gt 128 ]] \
+    && source ~/.dotfiles/.cache/terminal-bright-256.sh \
+    || source ~/.dotfiles/.cache/terminal-dark-256.sh
+# terminal with 8 colors
+else
+  [[ $TERM_BACKGROUND_BRIGHTNESS -gt 128 ]] \
+    && source ~/.dotfiles/.cache/terminal-bright.sh \
+    || source ~/.dotfiles/.cache/terminal-dark.sh
+fi

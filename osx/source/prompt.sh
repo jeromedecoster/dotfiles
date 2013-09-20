@@ -172,20 +172,6 @@ __prompt_advanced() {
   fi
 }
 
-# source the prompt variables
-source ~/.dotfiles/.cache/prompt.sh
-# terminal with 256 colors
-if [[ $TERM_COLORS -eq 256 ]]; then
-  [[ $TERM_BACKGROUND_BRIGHTNESS -gt 128 ]] \
-    && source ~/.dotfiles/.cache/prompt-bright-256.sh \
-    || source ~/.dotfiles/.cache/prompt-dark-256.sh
-# terminal with 8 colors
-else
-  [[ $TERM_BACKGROUND_BRIGHTNESS -gt 128 ]] \
-    && source ~/.dotfiles/.cache/prompt-bright.sh \
-    || source ~/.dotfiles/.cache/prompt-dark.sh
-fi
-
 # set the prompt
 [[ $PROMPT_TYPE == 'advanced' ]] && PROMPT_COMMAND='__prompt_advanced' || PROMPT_COMMAND='__prompt_basic'
 
@@ -193,17 +179,17 @@ fi
 prompt() {
   # inner functions
   function get_file() {
-    [[ $1 != 'color' ]] && echo ~/.dotfiles/.cache/prompt.sh && return
+    [[ $1 != 'color' ]] && echo ~/.dotfiles/.cache/terminal.sh && return
 
     if [[ $TERM_COLORS -eq 256 ]]; then
       [[ $TERM_BACKGROUND_BRIGHTNESS -gt 128 ]]       \
-        && echo ~/.dotfiles/.cache/prompt-bright-256.sh \
-        || echo ~/.dotfiles/.cache/prompt-dark-256.sh
+        && echo ~/.dotfiles/.cache/terminal-bright-256.sh \
+        || echo ~/.dotfiles/.cache/terminal-dark-256.sh
 
     else
       [[ $TERM_BACKGROUND_BRIGHTNESS -gt 128 ]]   \
-        && echo ~/.dotfiles/.cache/prompt-bright.sh \
-        || echo ~/.dotfiles/.cache/prompt-dark.sh
+        && echo ~/.dotfiles/.cache/terminal-bright.sh \
+        || echo ~/.dotfiles/.cache/terminal-dark.sh
     fi
   }
   function modif_file() {
@@ -370,7 +356,6 @@ prompt() {
     source ~/.dotfiles/osx/source/prompt.sh
   }
 
-  # configure
   echo
   echo "  c) configure the prompt"
   local new=basic
