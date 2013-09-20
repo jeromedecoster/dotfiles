@@ -16,7 +16,6 @@ alias gb="git branch"
 # delete a branch
 alias gbd="git branch -D"
 alias gc="git commit -m"
-alias gca="git commit -a -m"
 alias gcg="git config --global --list"
 # switch on a branch
 alias gco="git checkout"
@@ -28,7 +27,7 @@ alias gpom="git push -u origin master"
 # back to the last commit (undo local modifications)
 alias grh="git reset --hard"
 alias gs="git status"
-# git extensions
+# git ignore is my .dotfiles/osx/bin/git-ignore extension
 alias gig="git ignore"
 alias gsu="git summary"
 alias gun="git undo"
