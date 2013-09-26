@@ -1,0 +1,26 @@
+root = File.expand_path '..', __FILE__
+$:.unshift root unless $:.include? root
+
+require 'rake/testtask'
+
+task :default => :test
+
+desc 'Build support'
+task :support do
+  require 'osx/spec/spec_helper'
+  support
+  exit
+end
+
+Rake::TestTask.new do |t|
+  # add directories for 'require' in *_spec.rb files
+  t.libs << 'osx/spec'
+  t.libs << 'osx/spec/bin/crap'
+
+  t.test_files = FileList['osx/spec/bin/**/*_spec.rb']
+
+  # t.test_files = FileList['osx/spec/bin/git-ignore/*_spec.rb']
+  # t.test_files = FileList['osx/spec/bin/crap/*_spec.rb']
+  # t.test_files = FileList['osx/spec/bin/crap/git_spec.rb']
+  # t.test_files = FileList['osx/spec/bin/crap_spec.rb']
+end
