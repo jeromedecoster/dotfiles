@@ -1,298 +1,240 @@
 #!/bin/bash
 
-# remove all crap files in a directory and sub-directories
-# files: .DS_Store .Spotlight-V100 desktop.ini Thumbs.db
-# remove also empty directories and zero ko files
-# 
-# if the directory is a sub-directory of a git or svn repo
-# will try to remove all crap files from the local root of
-# this repository
-# 
-# without option, the command will display a list of files
-# and prompt the user
-# with option, all files are deleted directly and silently
-# 
-# interactive examples:
-# execute 'crap' remove all files in the pwd
-# execute 'crap path/to/directory' remove all files in this folder
-# direct examples:
-# execute 'crap -a' remove all files in the pwd
-# execute 'crap -e path/to/directory' remove all empty directories in this folder
+# remove all crap files in a directory and his sub-directories
+#
+# crap files are:
+# .DS_Store
+# desktop.ini
+# .fseventsd
+# Thumbs.db
+# .Spotlight-V100
+# .TemporaryItems
+#
+# crap files also includes:
+# empty directories
+# zero ko files
+#
+# with option [-acdz], the command only list the removable files
+#
+# without option, the command enter an interactive mode,
+# prompt the user to select the kind of files to remove
+#
+# if the directory is inside a git or svn repository,
+# all already tracked crap files will be ignored
+
+# dependencies:
+# svnroot   - is ~/.dotfiles/osx/bin/svnroot
+# grealpath - is installed with the coreutils homebrew formula
 
 # write the usage message in the stderr and exit 1
-function usage() {
-    local msg=$(cat <<EOF
-usage: crap [-acez]
-       crap [-acez] directory
-option: -a delete all
-        -c delete crap files
-        -d delete empty directories
-        -z delete 0 ko files
-EOF)
-    echo -e "$msg" >&2
+usage() {
+  { echo usage: crap [options] [directory]
+    echo option: -a list all
+    echo '        -c list crap files'
+    echo '        -d list empty directories'
+    echo '        -z list 0 ko files'
     exit 1
+  } >&2
 }
 
-function lower() {
-    [[ $# -ne 1 ]] && echo "Runtime error: lower require 1 argument" && exit 1
-    echo $(echo "$1" | tr '[A-Z]' '[a-z]')
-}
+crap=
+empty=
+zero=
+path=
 
-function delete_crap_files() {
-    for i in "${CRAP_FILES[@]}"; do
-        rm -f "$i"
-    done
-    unset i
-}
-
-function delete_empty_folders() {
-    for i in "${EMPTY_FOLDERS[@]}"; do
-        rm -fd "$i"
-    done
-    unset i
-}
-
-function delete_zero_files() {
-    for i in "${ZERO_FILES[@]}"; do
-        rm -f "$i"
-    done
-    unset i
-}
-
-function prompt_choice() {
-    c="${BLU}"
-    for (( i=0; i<=${#CHOICES[@]}; i=i+1 )); do
-        c="$c${CHOICES[i]}"
-    done
-    c="$c${RES}"
-
-    echo -e -n "Select what you want delete [$c]: "
-    read r
-    # lowercase the result
-    r=$(lower "$r")
-    case "$r" in
-        a|c|e|z)
-            for i in "${CHOICES[@]}"; do
-                [[ "$r" == $(lower "$i") ]] && SELECT="$r" && return
-            done
-            prompt_choice
-        ;;
-        '') SELECT=$(lower "${CHOICES[0]}") ;;
-         *) prompt_choice ;;
+for e in "${@}"; do
+  # it's a valid argument
+  if [[ "$e" =~ ^-[acdz]$ ]]; then
+    case "$e" in
+      '-a') crap=1; empty=1; zero=1 ;;
+      '-c') crap=1  ;;
+      '-d') empty=1 ;;
+      '-z') zero=1  ;;
     esac
-}
-
-cur=$(pwd)
-
-if [[ $# -gt 0 ]]; then
-    # accept only 1 or 2 arguments
-    [[ $# -gt 2 ]] && usage
-    # if the first argument is an option
-    if [[ "${1:0:1}" == '-' ]]; then
-        direct=1
-        case "$1" in
-            '-a') all=1   ;;
-            '-c') crap=1  ;;
-            '-e') empty=1 ;;
-            '-z') zero=1  ;;
-               *) usage   ;;
-        esac
-        # if has a second argument, must be a directory
-        [[ $# -eq 2 ]] && ARGUMENT_DIR="$2"
-
-    # if has only 1 argument, must be a directory
-    else
-        ARGUMENT_DIR="$1"
-    fi
-
-    # if a directory is given
-    if [[ "$ARGUMENT_DIR" ]]; then
-        # if the ARGUMENT_DIR variable is a real directory, cd into it
-        if [[ -d "$ARGUMENT_DIR" ]]; then
-            cd "$ARGUMENT_DIR"
-        # otherwise exit with the usage message
-        else
-            usage
-        fi
-    fi
-fi
-
-# define the SEARCH_DIR variable
-# if inside a git directory, locate the root repo directory
-if [[ "$(git status 2>/dev/null)" ]]; then
-    SEARCH_DIR=$(git rev-parse --show-toplevel)
-else
-    # if inside svn directory, try to locate the root repo directory
-    if [[ "$(svn info . 2> /dev/null)" ]]; then
-        if [[ "$(type -P ruby)" || "$(type -P python)" ]]; then
-            SEARCH_DIR=$(svnroot)
-        else
-            SEARCH_DIR=$(pwd)
-        fi
-    # otherwise take the pwd
-    else
-        SEARCH_DIR=$(pwd)
-    fi
-fi
-
-# back to the previous pwd
-cd "$cur"
-
-# locate all the crap files
-old_IFS=$IFS
-IFS=$'\n'
-CRAP_FILES=($(find "$SEARCH_DIR" -type f -name '.DS_Store'   -o -name '.Spotlight-V100' \
-                                  -o -name 'desktop.ini' -o -name 'Thumbs.db' 2>/dev/null))
-EMPTY_FOLDERS=($(find "$SEARCH_DIR" -empty -type d | grep -v -E ".git/|.svn/|node_modules/"))
-# special case: inside an empty folder, find will detect the root folder itself
-if [[ ${#EMPTY_FOLDERS[@]} -eq 1 && ${EMPTY_FOLDERS[0]} == "$SEARCH_DIR" ]]; then
-    EMPTY_FOLDERS=()
-fi
-ZERO_FILES=($(find "$SEARCH_DIR" -empty -type f | grep -v -E ".git/|.svn/|node_modules/"))
-IFS=$old_IFS
-
-
-# if direct (call command with option -acez), delete then exit
-if [[ "$direct" -eq 1 ]]; then
-    [[ "$crap" -eq 1  || "$all" -eq 1 ]] && delete_crap_files
-    [[ "$empty" -eq 1 || "$all" -eq 1 ]] && delete_empty_folders
-    [[ "$zero" -eq 1  || "$all" -eq 1 ]] && delete_zero_files
-    exit
-fi
-# ...else it's the interactive mode
-
-crap_count=${#CRAP_FILES[@]}
-empty_count=${#EMPTY_FOLDERS[@]}
-zero_count=${#ZERO_FILES[@]}
-
-count=0
-[[ $crap_count  -gt 0 ]] && count=$(($count + 1))
-[[ $empty_count -gt 0 ]] && count=$(($count + 1))
-[[ $zero_count  -gt 0 ]] && count=$(($count + 1))
-
-# exit if nothing to delete
-[[ $count -eq 0 ]] && exit 0
-
-BOL="\033[1;30m"
-BLU="\033[0;34m"
-RES="\033[0m"
-
-if [[ $count -gt 1 ]]; then
-    CHOICES=(A)
-    menu=("  ${BLU}A)${RES} Delete all")
-else
-    CHOICES=()
-    menu=()
-fi
-
-function echo_type_path() {
-    [[ $# -ne 2 ]] && echo "Runtime error: echo_type_path require 2 arguments" && exit 1
-    if [[ $1 != 'c' && $1 != 'e' && $1 != 'z' ]]; then
-        echo "Runtime error: echo_type_path first argument must be c, e or z"
-        exit 1
-    fi
-
-    local msg target
-    case "$1" in
-        'c') msg="${BOL}crap file${RES}" ;;
-        'e') msg="${BOL}empty dir${RES}" ;;
-        'z') msg="${BOL}0 ko file${RES}" ;;
-    esac
-    # if a directory is given within the command call, this directory
-    # will be used as prefix to the output path
-    if [[ "$ARGUMENT_DIR" ]]; then
-        local dir="$ARGUMENT_DIR"
-        # add a trailing slash to the prefix dir if it does not already exist
-        [[ "${ARGUMENT_DIR:${#ARGUMENT_DIR}-1}" != '/' ]] && dir="$dir/"
-
-        # it's a relative path if the first char is a '.'
-        if [[ "${ARGUMENT_DIR:0:1}" == '.' ]]; then
-            # absolute path of the argument dir
-            if [[ ! "$ABS_ARG_DIR" ]]; then
-                ABS_ARG_DIR="$(abspath "$ARGUMENT_DIR")"
-            fi
-            # the target will be relative from the directory given as command line argument 
-            target="$dir$(relpath "$2" "$ABS_ARG_DIR")"
-
-        # otherwise it's an absolute path
-        else
-            # if the file is inside the user's home folder '~'
-            if [[ "$HOME" == "${2:0:${#HOME}}" ]]; then
-                # truncate the target, starts from the ~ folder
-                target="~${2:${#HOME}}"
-            else
-                # keep the target full path
-                target="$2"
-            fi
-        fi
-    # no directory given in the command arguments list
-    # the file location will starts like './'
-    else
-        # echo -e "$msg .${2:${#SEARCH_DIR}}"
-        target=".${2:${#SEARCH_DIR}}"
-    fi
-
-    # if it's a directory, add a trailing slash
-    [[ "$1" == 'e' ]] && target="$target/"
-
-    echo -e "$msg $target"
-}
-
-if [[ $crap_count -ne 0 ]]; then
-    for i in "${CRAP_FILES[@]}"; do
-        echo_type_path 'c' "$i"
-    done
-    [[ $crap_count -gt 1 ]] && word='files' || word='file'
-    if [[ $count -gt 1 ]]; then
-        CHOICES+=(c)
-        menu+=("  c) Delete crap $word")
-    else
-        CHOICES=(C)
-        menu=("  ${BLU}C)${RES} Delete crap $word")
-    fi
-fi
-
-if [[ $empty_count -ne 0 ]]; then
-    for i in "${EMPTY_FOLDERS[@]}"; do
-        echo_type_path 'e' "$i"
-    done
-    [[ $empty_count -gt 1 ]] && word='directories' || word='directory'
-    if [[ $count -gt 1 ]]; then
-        CHOICES+=(e)
-        menu+=("  e) Delete empty $word")
-    else
-        CHOICES=(E)
-        menu=("  ${BLU}E)${RES} Delete empty $word")
-    fi
-fi
-
-if [[ $zero_count -ne 0 ]]; then
-    for i in "${ZERO_FILES[@]}"; do
-        echo_type_path 'z' "$i"
-    done
-    [[ $zero_count -gt 1 ]] && word='files' || word='file'
-    if [[ $count -gt 1 ]]; then
-        CHOICES+=(z)
-        menu+=("  z) Delete 0 ko $word")
-    else
-        CHOICES=(Z)
-        menu=("  ${BLU}Z)${RES} Delete 0 ko $word")
-    fi
-fi
-
-echo
-for i in "${menu[@]}"; do
-    echo -e "$i"
+  # it's a valid directory
+  elif [[ -d "$e" ]]; then
+    # exit with usage if $path already setted in a previous loop
+    [[ -z "$path" ]] && path="$e" || usage
+  # otherwise, exit with usage
+  else
+    usage
+  fi
 done
-unset i
-echo
 
-# define var $SELECT from prompt
-prompt_choice
+# if no path is given, works with pwd
+# otherwise remove trailing slash
+[[ -z "$path" ]] && path=. || path=`echo "$path" | sed 's/\/*$//'`
 
-[[ "$SELECT" == 'c' || "$SELECT" == 'a' ]] && delete_crap_files
-[[ "$SELECT" == 'e' || "$SELECT" == 'a' ]] && delete_empty_folders
-[[ "$SELECT" == 'z' || "$SELECT" == 'a' ]] && delete_zero_files
+# no option passed, enter interactive mode
+if [[ -z "$crap" && -z "$empty" && -z "$zero" ]]; then
+  declare -i nbr=0
 
-# prevent exitcode 1 in some strange cases
-exit 0
+  crap=`crap -c "$path"`
+  [[ -n "$crap" ]] && nbr=nbr+1 && echo "$crap" \
+                    | while read c; do
+                        echo -e "${STDOUT_HIGHLIGHT}crap file${COL_RES} $c"
+                      done
+
+  empty=`crap -d "$path"`
+  [[ -n "$empty" ]]  && nbr=nbr+1 && echo "$empty" \
+                      | while read f; do
+                          echo -e "${STDOUT_HIGHLIGHT}empty dir${COL_RES} $f"
+                        done
+
+  zero=`crap -z "$path"`
+  [[ -n "$zero" ]] && nbr=nbr+1 && echo "$zero" \
+                    | while read f; do
+                        echo -e "${STDOUT_HIGHLIGHT}0 ko file${COL_RES} $f"
+                      done
+
+  [[ $nbr -eq 0 ]] && exit
+
+  echo
+  chars=
+  [[ $nbr -gt 1 ]]  && echo "  a) all" && chars=A
+  [[ -n "$crap" ]]  && echo "  c) crap files" && chars+=c
+  [[ -n "$empty" ]] && echo "  d) empty directories" && chars+=d
+  [[ -n "$zero" ]]  && echo "  z) 0 ko files" && chars+=z
+  echo
+
+  # uppercase the only char
+  [[ $nbr -eq 1 ]] && chars=`echo $chars | tr '[a-z]' '[A-Z]'`
+
+  while true; do
+    echo -e -n "what do you want remove? [$chars]: "
+    read r
+    r=$(echo "$r" | tr '[A-Z]' '[a-z]')
+    case "$r" in
+      a|c|d|z) [[ -n `echo "$chars" | tr '[A-Z]' '[a-z]' | grep "$r"` ]] && break ;;
+           '') r=`echo "$chars" | cut -c 1 | tr '[A-Z]' '[a-z]'` && break ;;
+    esac
+  done
+
+  [[ $r == 'a' || $r == 'c' ]] && echo "$crap"  | while read f; do rm -fr "$f"; done
+  [[ $r == 'a' || $r == 'd' ]] && echo "$empty" | while read f; do rm -fr "$f"; done
+  [[ $r == 'a' || $r == 'z' ]] && echo "$zero"  | while read f; do rm -f  "$f"; done
+
+  # interactive mode stops here
+  # explicitly exit with 0 to prevent exitcode 1 in some strange cases
+  exit 0
+fi
+
+# check if $path is inside a git or svn repository
+# if yes, list all currently tracked files
+# if a crap file, 0 ko file or an empty directory is tracked, it will not be proposed to the suppression
+cwd=`pwd`
+cd "$path"
+# if inside a git repository
+if [[ -n `git status 2>/dev/null` ]]; then
+  # the variable $tracked is a listing of all files currently tracked by the git repository
+  # all files are listed with an absolute path (on the hard drive)
+  tracked=`root=$(git rev-parse --show-toplevel) && cd "$root" && git ls-files | while read l; do \
+      echo "$root/$l"
+    done`
+# if inside a svn checkout repository
+elif [[ -n `svn info 2>/dev/null` ]]; then
+  root=`svnroot 2>/dev/null`
+  # the command 'svn ls' needs the repository server url
+  url=`svn info | grep "^URL" | cut -c 6-999`
+  # the variable $tracked is a listing of all files currently tracked by the svn server
+  # and the locally tracked files (not yet commited)
+  # all files are listed with an absolute path (on the hard drive)
+  tracked=`svn ls -R "$url" | sed 's/\/*$//' | while read l; do
+      echo "$root/$l"
+    done && svn status | grep -v "^\?" | cut -c 9-999 | while read l; do
+      echo "$root/$l"
+    done`
+fi
+cd "$cwd"
+
+# crap files detection
+if [[ $crap -eq 1 ]]; then
+  crap=`find "$path" -name .DS_Store \
+                      -o -name desktop.ini \
+                      -o -name .fseventsd \
+                      -o -name Thumbs.db \
+                      -o -name .Spotlight-V100 \
+                      -o -name .TemporaryItems 2>/dev/null \
+    | sed "s/^\.\///"`
+
+  # under git or svn repository, tracked files will not be listed
+  if [[ -n "$tracked" ]]; then
+    echo "$crap" | while read l; do
+      # use grealpath from coreutils formula
+      [[ -z `echo "$tracked" | egrep "^$(grealpath "$l")$"` ]] && echo "$l"
+    done
+  else
+    echo "$crap"
+  fi
+fi
+
+# empty directories detection
+if [[ $empty -eq 1 ]]; then
+  # echo "collect empty:$path:"
+  # locate empty directories with 'find -E "$path" -empty -type d' does not work
+  # ie: if a directory contains only a '.DS_Store' file, it will be judged as filled
+
+  # test if $1 is an empty directory
+  # if yes, echo the path $1
+  # if no, echo nothing
+  # if $1 is an empty directory, but his parent is also empty (except containing this child),
+  # then echo the parent path instead
+  empty() {
+    local path="$1"
+    local base=
+    local tmp=
+    while true; do
+      if [[ -z `ls -A1 "$path" | egrep -v -e "^\.DS_Store$" \
+                                          -e "^desktop\.ini$" \
+                                          -e "^Thumbs\.db$" \
+                                          -e "^\.Spotlight-V100$" \
+                                          -e "^\.TemporaryItems$" \
+                                          -e "^\.fseventsd$" \
+                                          -e "^$base$" ` ]]; then
+        tmp=`basename "$path"`
+        [[ "$tmp" != '.' && "$tmp" != '/' ]] && base="$tmp" || break
+        path=`dirname "$path"`
+      else
+        break
+      fi
+    done
+    [[ -n "$base" ]] && echo "$path/$base" | sed "s/^\.\///"
+  }
+
+  # nerd command ;)
+  empty=`find -E "$path" -type d ! -regex ".*/\.(git|svn)($|/.*)" \
+                          ! -regex ".*/node_modules($|/.*)" 2>/dev/null \
+    | sed "s/^\.\///" \
+    | grep -v "^$path$" \
+    | while read dir; do
+        dir=$(empty "$dir")
+        [[ -n "$dir" ]] && echo "$dir"
+      done`
+
+  # under git or svn repository, tracked files will not be listed
+  if [[ -n "$tracked" ]]; then
+    echo "$empty" | while read l; do
+      # use grealpath from coreutils formula
+      [[ -z `echo "$tracked" | egrep "^$(grealpath "$l")$"` ]] && echo "$l"
+    done
+  else
+    echo "$empty"
+  fi
+fi
+
+# 0 ko files detection
+if [[ $zero -eq 1 ]]; then
+  zero=`find -E "$path" -empty -type f ! -regex ".*/\.(git|svn)($|/.*)" \
+                                 ! -regex ".*/node_modules($|/.*)" 2>/dev/null \
+    | sed "s/^\.\///"`
+
+  # under git or svn repository, tracked files will not be listed
+  if [[ -n "$tracked" ]]; then
+    echo "$zero" | while read l; do
+      # use grealpath from coreutils formula
+      [[ -z `echo "$tracked" | egrep "^$(grealpath "$l")$"` ]] && echo "$l"
+    done
+  else
+    echo "$zero"
+  fi
+fi
