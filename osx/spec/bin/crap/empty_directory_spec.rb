@@ -1,5 +1,3 @@
-require 'spec_helper'
-require 'crap_helper'
 
 # emtpy directory detection inside a regular directory
 describe 'crap executable' do

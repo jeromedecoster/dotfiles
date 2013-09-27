@@ -1,5 +1,3 @@
-require 'spec_helper'
-require 'crap_helper'
 
 # 0 ko detection inside a regular directory
 describe 'crap executable' do

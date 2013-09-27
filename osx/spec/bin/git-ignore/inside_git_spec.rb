@@ -1,4 +1,3 @@
-require 'spec_helper'
 
 # inside a git directory
 describe 'git-ignore extension' do

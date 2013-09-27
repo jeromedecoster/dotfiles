@@ -1,5 +1,3 @@
-require 'spec_helper'
-require 'crap_helper'
 
 # detection inside a git directory
 describe 'crap executable' do

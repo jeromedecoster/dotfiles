@@ -33,3 +33,21 @@ if [[ `type -P rbenv` && -z `type -t _rbenv` ]]; then
   # init rbenv
   eval "`rbenv init -`"
 fi
+
+# if the current ruby is the system version
+if [[ -n `rbenv version | grep "^system"` ]]; then
+  latest() {
+    ls -1 ~/.rbenv/versions | egrep "^$1-p[[:digit:]]+$" | tail -n 1
+  }
+  version=`latest 1.9.3`
+  # ruby 1.9.3 is available, define as global
+  if [[ -n "$version" ]]; then
+    rbenv global "$version"
+  else
+    version=`latest 2.0.0`
+    # ruby 2.0.0 is available, define as global
+    [[ -n "$version" ]] && rbenv global "$version"
+  fi
+  unset -f latest
+  unset version
+fi

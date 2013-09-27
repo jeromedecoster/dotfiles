@@ -1,5 +1,3 @@
-require 'spec_helper'
-require 'crap_helper'
 
 # detection inside a svn checkout directory
 describe 'crap executable' do

@@ -1,5 +1,18 @@
-SUPPORT = '/dotfiles-support'
+require 'pathname'
 
+SUPPORT = Pathname.new('~/.dotfiles-support').expand_path
+
+# loads some require needed to execute tests
+def setup
+  # builds the support directory if missing
+  support unless File.exist? "#{SUPPORT}/assets"
+
+  require 'minitest/autorun'
+  require 'minitest/pride'
+  require 'open3'
+end
+
+# builds the SUPPORT directory
 def support
   cwd = Dir.pwd
 
@@ -10,7 +23,6 @@ def support
   # init the git-crap repository
   `mkdir -p #{SUPPORT}/assets/git-crap/path/to/directory`
   `git init #{SUPPORT}/assets/git-crap`
-  require 'osx/spec/bin/crap/crap_helper'
   add_crap "#{SUPPORT}/assets/git-crap"
   Dir.chdir "#{SUPPORT}/assets/git-crap"
   # note: it's impossible to add an empty directory to a git repository
@@ -59,9 +71,29 @@ def support
   Dir.chdir cwd
 end
 
-require 'minitest/autorun'
-require 'minitest/pride'
-require 'open3'
-
-# build support if missing
-support unless File.exist? "#{SUPPORT}/assets"
+# creates craps files
+def add_crap path
+  cwd = Dir.pwd
+  `mkdir -p #{path}/path/to/directory`
+  Dir.chdir "#{path}/path/to/directory"
+  3.times do
+    # crap files
+    `echo "data" > .DS_Store`
+    `echo "data" > desktop.ini`
+    `echo "data" > Thumbs.db`
+    `mkdir .fseventsd`
+    `echo "data" > .fseventsd/data`
+    `mkdir .Spotlight-V100`
+    `echo "data" > .Spotlight-V100/data`
+    `mkdir .TemporaryItems`
+    `echo "data" > .TemporaryItems/data`
+    # zero ko files
+    `touch .zero`
+    `touch zero`
+    # empty dir
+    `mkdir -p .empty`
+    `mkdir -p empty`
+    Dir.chdir '..'
+  end
+  Dir.chdir cwd
+end
