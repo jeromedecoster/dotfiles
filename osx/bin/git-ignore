@@ -1,5 +1,12 @@
 #!/bin/bash
 
+# DESCRIPTION
+# ===========
+# create, list or append a local .gitignore file
+#
+# usage: git ignore [pattern] [pattern]
+
+
 # if not inside a git repository
 if [[ -z `git status 2>/dev/null` ]]; then
   # write the error message in the stderr

@@ -1,7 +1,7 @@
 Dotfiles
 ========
 
-My OS X / Windows dotfiles are my ultimate plan to conquer the world... or at least my computer <img width="20" height="20" src="https://github.global.ssl.fastly.net/images/icons/emoji/stuck_out_tongue_winking_eye.png"/>
+My OS X / Windows dotfiles are my ultimate plan to conquer the world... or at least my computer
 
 Mainly inspired by Ben Alman's <a href="https://github.com/cowboy/dotfiles" target="_blank">dotfiles</a> but everything was rewritten from scratch
 
@@ -30,7 +30,7 @@ bash -c "$(curl -fsSL raw.github.com/jeromedecoster/dotfiles/master/osx/install)
 <a name="osx-what"/>
 #### What the install script do?
 
-* Install <a href="http://brew.sh" target="_blank">hombrew</a> in `/usr/local/homebrew` or update your current version
+* Install <a href="http://brew.sh" target="_blank">homebrew</a> in `/usr/local/homebrew` or update your current version
 * Prompt you to remove <a href="https://rvm.io" target="_blank">rvm</a>. If you don't allow it, the script is aborted
 * Install or update the following homebrew formulas
   * <a href="https://github.com/mxcl/homebrew/blob/master/Library/Formula/git.rb" target="_blank">git</a>
@@ -97,6 +97,8 @@ manh grep
 # or using the alias
 mh grep
 ```
+
+* <a href="https://github.com/jeromedecoster/dotfiles/blob/master/osx/bin/svnroot" target="_blank">crap</a> return the local repository root of a svn repository
 
 **A set of git extensions are added**
 

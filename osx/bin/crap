@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# DESCRIPTION
+# ===========
 # remove all crap files in a directory and his sub-directories
 #
 # crap files are:
@@ -22,9 +24,12 @@
 # if the directory is inside a git or svn repository,
 # all already tracked crap files will be ignored
 
-# dependencies:
+
+# DEPENDENCIES
+# ============
 # svnroot   - is ~/.dotfiles/osx/bin/svnroot
 # grealpath - is installed with the coreutils homebrew formula
+
 
 # write the usage message in the stderr and exit 1
 usage() {
