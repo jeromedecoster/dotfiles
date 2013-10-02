@@ -8,8 +8,13 @@ Mainly inspired by Ben Alman's <a href="https://github.com/cowboy/dotfiles" targ
 #### OS X
 * [Install](#osx-install)
 * [What the install script do?](#osx-what)
-* [What is executed when I start my Terminal after that?](#osx-executed)
-* [What is new in my terminal after that?](#osx-new)
+
+What is new after that?
+* [What is executed when I start my Terminal?](#osx-executed)
+* [The added executables](#osx-executables)
+* [The added git extensions](#osx-git-extensions)
+* [The added functions](#osx-functions)
+* [An advanced prompt is defined](#osx-prompt)
 
 #### Windows
 * [Install](#win-install)
@@ -62,7 +67,7 @@ bash -c "$(curl -fsSL raw.github.com/jeromedecoster/dotfiles/master/osx/install)
 - - -
 
 <a name="osx-executed"/>
-#### What is executed when I start my Terminal after that?
+#### What is executed when I start my Terminal?
 
 When you start or open a new tab of your <a href="http://en.wikipedia.org/wiki/Terminal_%28OS_X%29" target="_blank">Terminal</a> or <a href="http://en.wikipedia.org/wiki/ITerm2" target="_blank">iTerm</a> console, the `~/.bash_profile` file is executed
 
@@ -80,10 +85,8 @@ The following steps are executed
 
 - - -
 
-<a name="osx-new"/>
-#### What is new in my terminal after that?
-
-**A set of executables are added**
+<a name="osx-executables"/>
+#### The added executables
 
 * <a href="https://github.com/jeromedecoster/dotfiles/blob/master/osx/bin/browse" target="_blank">browse</a> open an uri in a browser or in the Finder
 
@@ -108,14 +111,26 @@ manh grep
 mh grep
 ```
 
-* <a href="https://github.com/jeromedecoster/dotfiles/blob/master/osx/bin/svnroot" target="_blank">crap</a> return the local repository root of a svn repository
+* <a href="https://github.com/jeromedecoster/dotfiles/blob/master/osx/bin/svnroot" target="_blank">svnroot</a> return the local repository root of a svn repository
 
-**A set of git extensions are added**
+- - -
+
+<a name="osx-git-extensions"/>
+#### The added git extensions
 
 * <a href="https://github.com/jeromedecoster/dotfiles/blob/master/osx/bin/git-ignore" target="_blank">git-ignore</a> allows you to create, list or append a local `.gitignore` file
 
+- - -
+
+<a name="osx-functions"/>
+#### The added functions
+
+TODO
+
+- - -
+
 <a name="osx-prompt"/>
-**An advanced prompt is defined**
+#### An advanced prompt is defined
 
 * The prompt display a colored path of the `pwd` above your command prompt
   * If too long, this path is automatically truncated with `...`
@@ -135,11 +150,6 @@ mh grep
   * It uses 8 or 256 colors if you use `Terminal` or `iTerm`
   * Colors are adjusted if the background of your console is dark or bright
 * The colors and style of your prompt are configurable interactively with the command `prompt`
-
-<a name="osx-functions"/>
-**A set of functions are added**
-
-TODO
 
 - - -
 
