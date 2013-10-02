@@ -1,170 +1,194 @@
 #!/bin/bash
-function usage() {
-    # write the usage message in the stderr
-    # and exit with exitcode 1
-    local msg=$(cat <<EOF
-usage: browse uri
-       browse [-cfs] uri
-EOF)
-    echo -e "$msg" >&2 && exit 1
+
+# DESCRIPTION
+# ===========
+# open an uri in a browser or in the Finder
+#
+# with option [-cfs], will ask to browse with Chrome, Firefox or Safari
+
+# DEPENDENCIES
+# ============
+# grealpath - is installed with the coreutils homebrew formula
+
+usage() {
+  { echo 'usage: browse [options] [uri]'
+    echo 'option: -c browse in chrome'
+    echo '        -f browse in firefox'
+    echo '        -s browse in safari'
+    exit 1
+  } >&2
 }
 
-# open with the Finder, force column view
-# empty log to prevent the annoying echo 'column view' in the Terminal
-function finder() {
+abort() {
+  { echo "browse: $1"
+    exit 1
+  } >&2
+}
+
+# open with Finder, force column view
+finder() {
   local cmd
   arch -i386 pwd &>/dev/null
   [[ $? -eq 0 ]] && cmd="arch -i386 osascript" || cmd="osascript"
   eval "$cmd" <<EOF
+    tell application "System Events"
+      set app_title to (title of application processes whose frontmost is true) as string
+    end tell
     tell application "Finder"
       activate
-      open ("$1" as POSIX file)
+      open ("$absolute" as POSIX file)
       set current view of front window to column view
-      log ""
     end tell
+    if app_title is equal to "iTerm" then
+      tell application "iTerm" to activate
+    else if app_title is equal to "Terminal" then
+      tell application "Terminal" to activate
+    end if
 EOF
 }
 
-# open with Chrome, create a new tab if needed
+# open with Chrome
+# display and reload an existing tab if the url is already displayed
 # or update the current tab if it's the 'chrome://newtab/' starting view
-function chrome() {
-    arch -i386 osascript <<EOF
-        set launched to true
-        if application "Google Chrome" is not running then
-            set launched to false
-            tell application "Google Chrome" to activate
-            delay 0.5
+# or create a new tab
+chrome() {
+  local cmd
+  arch -i386 pwd &>/dev/null
+  [[ $? -eq 0 ]] && cmd="arch -i386 osascript" || cmd="osascript"
+  eval "$cmd" <<EOF
+    tell application "System Events"
+      set app_title to (title of application processes whose frontmost is true) as string
+    end tell
+    set launched to true
+    if application "Google Chrome" is not running then
+      set launched to false
+      tell application "Google Chrome" to activate
+      delay 0.5
+    end if
+    on curtab(pUrl)
+      tell application "Google Chrome" to set URL of active tab of front window to pUrl
+    end curtab
+    on geturl(pUrl)
+      repeat while true
+        if pUrl ends with "/" then
+          set pUrl to text 1 through ((count of pUrl) - 1) of pUrl
+        else
+          exit repeat
         end if
-        on curtab(pUrl)
-            tell application "Google Chrome" to set URL of active tab of front window to pUrl
-        end curtab
-        tell application "Google Chrome"
-            if launched is false then
-                curtab("$1") of me
-            else
-                if (count of properties of windows) is 0 then
-                    make new window
-                    curtab("$1") of me
-                else
-                    if URL of active tab of front window is "chrome://newtab/" then
-                        curtab("$1") of me
-                    else
-                        tell front window to make new tab
-                        curtab("$1") of me
-                    end if
-                end if
+      end repeat
+      set pUrl to text ((offset of "//" in pUrl) + 2) through ((count of pUrl) - 1) of pUrl
+      return pUrl
+    end geturl
+    tell application "Google Chrome"
+      activate
+      if launched is false then
+        curtab("$1") of me
+      else
+        if (count of properties of windows) is 0 then
+          make new window
+          curtab("$1") of me
+        else
+          set ok to false
+          set ref_url to geturl("$1") of me
+          repeat with win in windows
+            set idx to 0
+            repeat with t in tabs of win
+              set idx to idx + 1
+              set cur_url to geturl(get URL of t) of me
+              if cur_url is equal to ref_url then
+                set ok to true
+                set the index of win to 1
+                set active tab index of first window to idx
+                reload the active tab of first window
+                exit repeat
+              end if
+            end repeat
+            if ok = true
+              exit repeat
             end if
-        end tell
+          end repeat
+          if ok = false
+            if URL of active tab of front window is "chrome://newtab/" then
+              curtab("$1") of me
+            else
+              tell front window to make new tab
+              curtab("$1") of me
+            end if
+          end if
+        end if
+      end if
+    end tell
+    if app_title is equal to "iTerm" then
+      tell application "iTerm" to activate
+    else if app_title is equal to "Terminal" then
+      tell application "Terminal" to activate
+    end if
 EOF
 }
 
-function check_ruby_python() {
-    # Ruby or Python are not found
-    # write the error message in the stderr and exit 1
-    if [[ ! "$RUBY" && ! "$PYTHON" ]]; then
-        echo -e "error: Ruby or Python is required" >&2
-        exit 1
-    fi
+# open with a browser (if a specific browser is requested or if it's installed)
+browser() {
+  if [[ -z "$app" && $chrome -eq 1 || $app == 'chrome' ]]; then
+    chrome "$uri"
+  elif [[ -z "$app" && $firefox -eq 1 || $app == 'firefox' ]]; then
+    open -a Firefox.app "$uri"
+  elif [[ -z "$app" && $safari -eq 1 || $app == 'safari' ]]; then
+    open -a Safari.app "$uri"
+  else
+    abort 'no browser found'
+  fi
 }
 
-# required to compute absolute path in special cases
-RUBY=$(type -P ruby)
-PYTHON=$(type -P python)
 
-RED="\033[0;31m"
-RES="\033[0m"
+[[ -d '/Applications/Google Chrome.app' ]] && chrome=1
+[[ -d '/Applications/Firefox.app' ]] && firefox=1
+[[ -d '/Applications/Safari.app' ]] && safari=1
+uri=
 
-if [[ $# -gt 0 && $# -lt 3 ]]; then
-    [[ -d '/Applications/Google Chrome.app' ]] && chrome=1
-    [[ -d '/Applications/Firefox.app' ]] && firefox=1
-    [[ -d '/Applications/Safari.app' ]] && safari=1
-
-    if [[ $# -eq 2 ]]; then
-        case $1 in
-            '-c' )
-                [[ ! "$chrome" ]] && echo 'error: Chrome not found' && exit 1 || app='chrome'
-            ;;
-            '-f' )
-                [[ ! "$firefox" ]] && echo 'error: Firefox not found' && exit 1 || app='firefox'
-            ;;
-            '-s' )
-                [[ ! "$safari" ]] && echo 'error: Safari not found' && exit 1 || app='safari'
-            ;;
-            * ) usage ;;
-        esac
-        uri=$2
-    else
-        uri=$1
-    fi
-
-    if [[ ${uri:$((${#uri}-4))} == 'html' || ${uri:$((${#uri}-3))} == 'htm' ]]; then
-        # html file detected, check it's a real local file
-        # if yes, will be opened with 'file:///path/to/file' uri
-
-        # first test if Ruby or Python is installed
-        # if not, write an error message in the stderr and exit 1
-        check_ruby_python
-
-        tmp=$(abspath "$uri")
-        # if the absolute path is an existing file, set the flag localhtml
-        [[ -f "$tmp" ]] && localhtml=1
-    fi
-
-    # try to resolve local uri
-    if [[ "$localhtml" ]]; then
-        uri="file://$tmp"
-    elif [[ "$uri" == '.' ]]; then
-        uri=$(pwd)
-    elif [[ ${uri:0:16} == 'file://localhost' ]]; then
-        # resolve 'file://localhost/usr' to '/usr'
-        uri=${uri:16}
-    elif [[ ${uri:0:8} == 'file:///' ]]; then
-        # resolve 'file:///usr' to '/usr'
-        # or 'file:///Volumes/Documents/abc' to '/Volumes/Documents/abc'
-        uri=${uri:7}
-    elif [[ ${uri:0:1} == '.' ]]; then
-        # if starts with a dot, get the absolute path with Ruby or Python
-
-        # first test if Ruby or Python is installed
-        # if not, write an error message in the stderr and exit 1
-        check_ruby_python
-
-        uri=$(abspath "$uri")
-        # exit if the function return an error
-        [[ $? -ne 0 ]] && exit 1
-    fi
-
-    # if the uri starts with a '/', it's a local uri, browse with the Finder
-    # exception for html local files, opened with a browser
-    if [[ ! "$localhtml" && ${uri:0:1} == '/' ]]; then
-        [[ -f "$uri" ]] && uri=$(dirname "$uri")
-
-        # if the file or directory exists, open it with the Finder
-        if [[ -e "$uri" ]]; then
-            finder $uri
-        # otherwise write an error message in the stderr and exit 1
-        else
-            echo -e "error: the path $RED$uri$RES does not exist" >&2
-            exit 1
-        fi
-    else
-
-        # browsers require full url (starting with http://)
-        [[ ! "$localhtml" && ${uri:0:4} != 'http' ]] && uri="http://$uri"
-
-        # open with a browser (if a specific browser is required or if it's installed)
-        if [[ ! "$app" && "$chrome" -eq 1 || "$app" == 'chrome' ]]; then
-            chrome "$uri"
-        elif [[ ! "$app" && "$firefox" -eq 1 || "$app" == 'firefox' ]]; then
-            open -a Firefox.app "$uri"
-        elif [[ "$app" == 'safari' && "$safari" -eq 1 || "$safari" -eq 1 ]]; then
-            open -a Safari.app "$uri"
-        else
-            # write the error message in the stderr
-            # and exit with exitcode 1
-            echo 'error: no browser found' >&2 && exit 1
-        fi
-    fi
-else
+for e in "${@}"; do
+  # it's a valid argument
+  if [[ "$e" =~ ^-[cfs]$ ]]; then
+    case "$e" in
+      '-c') [[ -n "$chrome" ]]  && app=chrome  || abort 'Chrome not found' ;;
+      '-f') [[ -n "$firefox" ]] && app=firefox || abort 'Firefox not found' ;;
+      '-s') [[ -n "$safari" ]]  && app=safari  || abort 'Safari not found' ;;
+    esac
+  elif [[ -z "$uri" ]]; then
+    uri="$e"
+  else
     usage
+  fi
+done
+
+# no uri defined
+if [[ -z "$uri" ]]; then
+  uri=`pwd`
+  absolute="$uri"
+else
+  # remove starting 'file://' and trailing '/'
+  uri=`echo "$uri" | sed -e 's/^file:\/\///' -e 's/\/*$//'`
+  tmp=`grealpath "$uri"`
+  # if the absolute path exists
+  [[ -e "$tmp" ]] && absolute="$tmp"
+fi
+
+# absolute path
+if [[ -n "$absolute" ]]; then
+  # some extensions will open the browser
+  if [[ "$uri" =~ \.(html|htm|css|js)$ ]]; then
+    uri="file://$tmp"
+    html=1
+  # if it's a file
+  elif [[ -f "$absolute" ]]; then
+    absolute=`dirname "$absolute"`
+  fi
+fi
+
+if [[ -n "$absolute" ]]; then
+  [[ -n "$html" ]] && browser || finder
+else
+  # browsers require full url (starting with http://)
+  [[ ! "$uri" =~ ^http ]] && uri="http://$uri"
+
+  browser
 fi

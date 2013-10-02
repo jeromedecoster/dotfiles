@@ -85,6 +85,16 @@ The following steps are executed
 
 **A set of executables are added**
 
+* <a href="https://github.com/jeromedecoster/dotfiles/blob/master/osx/bin/browse" target="_blank">browse</a> open an uri in a browser or in the Finder
+
+```bash
+browse example.com
+# or using the alias
+b example.com
+# open the pwd in the Finder
+b
+```
+
 * <a href="https://github.com/jeromedecoster/dotfiles/blob/master/osx/bin/crap" target="_blank">crap</a> allows you to remove interactively some craps files contained in a directory. Those files are:
   * OS X files: `.DS_Store` `.fseventsd` `.Spotlight-V100` `.TemporaryItems`
   * Windows files: `desktop.ini` `Thumbs.db`

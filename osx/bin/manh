@@ -66,7 +66,7 @@ EOF
   # copy stylesheet and fonts if needed
   # the webfonts won't work in Firefox if they are not
   # in the same folder than the HTML file
-  src = path '~/.dotfiles/osx/conf'
+  src = path '~/.dotfiles/osx/config'
   %w{gbold.ttf gbold.woff gbook.ttf gbook.woff manh.css}.each do |f|
     unless File.exist? "#{folder}/#{f}"
       FileUtils.cp "#{src}/#{f}", folder
