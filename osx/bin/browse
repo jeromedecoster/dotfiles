@@ -56,9 +56,6 @@ chrome() {
   arch -i386 pwd &>/dev/null
   [[ $? -eq 0 ]] && cmd="arch -i386 osascript" || cmd="osascript"
   eval "$cmd" <<EOF
-    tell application "System Events"
-      set app_title to (title of application processes whose frontmost is true) as string
-    end tell
     set launched to true
     if application "Google Chrome" is not running then
       set launched to false
@@ -118,12 +115,41 @@ chrome() {
         end if
       end if
     end tell
-    if app_title is equal to "iTerm" then
-      tell application "iTerm" to activate
-    else if app_title is equal to "Terminal" then
-      tell application "Terminal" to activate
-    end if
 EOF
+}
+
+console_frontmost() {
+  local cmd
+  arch -i386 pwd &>/dev/null
+  [[ $? -eq 0 ]] && cmd="arch -i386 osascript" || cmd="osascript"
+  if [[ $TERM_PROGRAM == 'iTerm.app' ]]; then
+    # sets iTerm as the foreground application on screen
+    # no solution found to set only the frontmost window
+    eval "$cmd" <<EOF
+    tell application "iTerm"
+      activate
+    end tell
+EOF
+  elif [[ $TERM_PROGRAM == 'Apple_Terminal' ]]; then
+    # sets the frontmost opened Terminal window as the foreground window on screen
+    # and sets the other terminal windows to the background. It's a dirty hack because
+    # activate set all the windows of an application to the foreground
+    eval "$cmd" <<EOF
+      tell application "Terminal"
+        activate
+        set skip to true
+        repeat with e in windows
+          try
+            if not skip then
+              set frontmost of e to false
+            end if
+            set skip to false
+          end try
+        end repeat
+        log ""
+      end tell
+EOF
+  fi
 }
 
 # open with a browser (if a specific browser is requested or if it's installed)
@@ -137,6 +163,7 @@ browser() {
   else
     abort 'no browser found'
   fi
+  console_frontmost
 }
 
 

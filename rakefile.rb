@@ -1,4 +1,3 @@
-#!/usr/bin/env ruby
 
 # adds the current direcory to the load path
 root = File.expand_path '..', __FILE__

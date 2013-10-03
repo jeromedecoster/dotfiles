@@ -300,29 +300,40 @@ EOF
 }
 
 #
-# Sets the frontmost opened terminal window as the foreground window on screen
-# and sets the other terminal windows to the background. It's a dirty hack because
-# activate set all the windows of an application to the foreground
+# Sets the frontmost opened console window as the foreground window on screen
 #
-terminal_frontmost() {
+console_frontmost() {
   local cmd
   arch -i386 pwd &>/dev/null
   [[ $? -eq 0 ]] && cmd="arch -i386 osascript" || cmd="osascript"
-  eval "$cmd" <<EOF
-  tell application "Terminal"
-    activate
-    set skip to true
-    repeat with e in windows
-      try
-        if not skip then
-          set frontmost of e to false
-        end if
-        set skip to false
-      end try
-    end repeat
-    log ""
-  end tell
+  if [[ $TERM_PROGRAM == 'iTerm.app' ]]; then
+    # sets iTerm as the foreground application on screen
+    # no solution found to set only the frontmost window
+    eval "$cmd" <<EOF
+    tell application "iTerm"
+      activate
+    end tell
 EOF
+  elif [[ $TERM_PROGRAM == 'Apple_Terminal' ]]; then
+    # sets the frontmost opened Terminal window as the foreground window on screen
+    # and sets the other terminal windows to the background. It's a dirty hack because
+    # activate set all the windows of an application to the foreground
+    eval "$cmd" <<EOF
+      tell application "Terminal"
+        activate
+        set skip to true
+        repeat with e in windows
+          try
+            if not skip then
+              set frontmost of e to false
+            end if
+            set skip to false
+          end try
+        end repeat
+        log ""
+      end tell
+EOF
+  fi
 }
 
 #
@@ -331,6 +342,7 @@ EOF
 ring_bell() {
   for i in {1..3}; do
     echo -en "\007"
+    sleep 0.2
   done
 }
 
@@ -471,7 +483,7 @@ check_minimal_git() {
       echo 'abort: Git must be installed'
       browser 'http://git-scm.com/download/mac'
       sleep 1
-      terminal_frontmost
+      console_frontmost
       exit 1
     fi
   fi
@@ -937,7 +949,7 @@ chrome_extensions() {
         esac
       done
 
-      [[ "$r" == 'y' ]] && browser $3 && terminal_frontmost
+      [[ "$r" == 'y' ]] && browser $3 && console_frontmost
     else
       ok
     fi
@@ -951,7 +963,7 @@ chrome_extensions() {
   notok
 
   echo "autoskip: You have `yellow "10 seconds"` to answer the following question"
-  terminal_frontmost
+  console_frontmost
   ring_bell
 
   while true; do
@@ -1022,7 +1034,7 @@ firefox_extensions() {
         esac
       done
 
-      [[ "$r" == 'y' ]] && open -a Firefox.app $3 && terminal_frontmost
+      [[ "$r" == 'y' ]] && open -a Firefox.app $3 && console_frontmost
     else
       ok
     fi
@@ -1038,7 +1050,7 @@ firefox_extensions() {
   notok
 
   echo "autoskip: You have `yellow "10 seconds"` to answer the following question"
-  terminal_frontmost
+  console_frontmost
   ring_bell
 
   while true; do
