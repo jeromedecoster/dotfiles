@@ -107,9 +107,9 @@ b ..
   * zero ko files
 
 ```bash
-# list crap files in the pwd
+# list crap files from the pwd
 crap
-# list crap files in the parent directory
+# list crap files from the parent directory
 crap ..
 ```
 
@@ -136,7 +136,7 @@ git ignore
 # or using the alias
 gig
 # add some patterns
-gig cache/ temp/
+gig *.bak temp/
 ```
 
 * <a href="https://github.com/jeromedecoster/dotfiles/blob/master/osx/bin/git-summary" target="_blank">git-summary</a> displays summary informations from a git repository
