@@ -72,11 +72,11 @@ bash -c "$(curl -fsSL raw.github.com/jeromedecoster/dotfiles/master/osx/install)
 When you start or open a new tab of your <a href="http://en.wikipedia.org/wiki/Terminal_%28OS_X%29" target="_blank">Terminal</a> or <a href="http://en.wikipedia.org/wiki/ITerm2" target="_blank">iTerm</a> console, the `~/.bash_profile` file is executed
 
 The following steps are executed
-* The `$PATH` is modified
-  * The path `~/.dotfiles/osx/bin` is added at start — *prepend* — to allow immediate the availability of <a href="https://github.com/jeromedecoster/dotfiles/tree/master/osx/bin" target="_blank">those</a> executables
-  * Followed by the path `/usr/local/homebrew/bin` to allow quick availability of installed formulas
-  * Followed by the path `/usr/local/bin` which is by default placed after `/usr/bin`
-* Some files are sourced in `~/.dotfiles/osx/source/` to
+* The `$PATH` is modified, some paths are added at start — *prepend* — in this order:
+  * `~/.dotfiles/osx/bin` to allow immediate the availability of <a href="https://github.com/jeromedecoster/dotfiles/tree/master/osx/bin" target="_blank">those</a> executables
+  * `/usr/local/homebrew/bin` to allow quick availability of installed formulas
+  * `/usr/local/bin` which is by default placed after `/usr/bin`
+* Some files are sourced from `~/.dotfiles/osx/source/` to
   * define some <a href="https://github.com/jeromedecoster/dotfiles/blob/master/osx/source/colors.sh" target="_blank">colors</a>, depending on the number of colors that allows your console
   * setup an advanced <a href="https://github.com/jeromedecoster/dotfiles/blob/master/osx/source/prompt.sh" target="_blank">prompt</a> explained <a href="#osx-prompt">here</a>
   * define some <a href="https://github.com/jeromedecoster/dotfiles/blob/master/osx/source/aliases.sh" target="_blank">aliases</a>
@@ -96,6 +96,8 @@ browse example.com
 b example.com
 # open the pwd in the Finder
 b
+# open the parent directory in the Finder
+b ..
 ```
 
 * <a href="https://github.com/jeromedecoster/dotfiles/blob/master/osx/bin/crap" target="_blank">crap</a> allows you to remove interactively some craps files contained in a directory. Those files are:
@@ -103,6 +105,14 @@ b
   * Windows files: `desktop.ini` `Thumbs.db`
   * empty directories
   * zero ko files
+
+```bash
+# list crap files in the pwd
+crap
+# list crap files in the parent directory
+crap ..
+```
+
 * <a href="https://github.com/jeromedecoster/dotfiles/blob/master/osx/bin/manh" target="_blank">manh</a> allows you to read the <a href="http://en.wikipedia.org/wiki/Man_page" target="_blank">man pages</a> within your browser, nicely styled
 
 ```bash
@@ -119,6 +129,25 @@ mh grep
 #### The added git extensions
 
 * <a href="https://github.com/jeromedecoster/dotfiles/blob/master/osx/bin/git-ignore" target="_blank">git-ignore</a> allows you to create, list or append a local `.gitignore` file
+
+```bash
+# create .gitignore file or displays his content
+git ignore
+# or using the alias
+gig
+# add some patterns
+gig cache/ temp/
+```
+
+* <a href="https://github.com/jeromedecoster/dotfiles/blob/master/osx/bin/git-summary" target="_blank">git-summary</a> displays summary informations from a git repository
+
+```bash
+git summary
+# or using the alias
+gsum
+# displays summary for the top 3 commiters
+gsum 3
+```
 
 - - -
 

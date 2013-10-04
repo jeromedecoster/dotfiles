@@ -10,6 +10,7 @@
 # ============
 # grealpath - is installed with the coreutils homebrew formula
 
+
 usage() {
   { echo 'usage: browse [options] [uri]'
     echo 'option: -c browse in chrome'

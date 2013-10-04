@@ -1,7 +1,18 @@
 #!/usr/bin/env ruby
+
+# DESCRIPTION
+# ===========
+# convert a man page to a pretty html page
+
+# DEPENDENCIES
+# ============
+# browse   - is ~/.dotfiles/osx/bin/browse
+# man2html - is installed with the man2html homebrew formula
+
+
+require 'fileutils'
 require 'open3'
 require 'pathname'
-require 'fileutils'
 
 def exit_msg msg
   $stderr.puts msg

@@ -1,133 +1,142 @@
-#!/usr/bin/env ruby
-# encoding: utf-8
-require 'open3'
+#!/bin/bash
 
-# NOTE: git-summary is done in Ruby
-# I'll try to achieve it in awk, but OSX awk is not multibyte and some problems appears
-# with multibyte author names/comments
-# gawk is multibytes but not installed by default in OSX. It can be easily installed
-# with homebrew but, in msysGit, the gawk version is too old and don't support multibyte
-# So, to simplify everything, it's finnaly done in Ruby
+# DESCRIPTION
+# ===========
+# displays summary informations from a git repository
+#
+# usage: git summary [commiters]
+#
+# by default only top 10 commiters are listed
+# you can modify it by passing a new number as argument, ie: git summary 3
 
-# Open3.capture3 comes with Ruby 1.9.2
-if RUBY_VERSION < '1.9.2'
-    $stderr.puts 'error: Ruby 1.9.2 minimum required'
-    exit 1
-end
+# DEPENDENCIES
+# ============
+# gtac - is installed with the coreutils homebrew formula
+# gwc  - is installed with the coreutils homebrew formula
 
-unless Open3.capture3('git status 2>/dev/null')[2].success?
-    # write the error message in the stderr
-    # and exit with exitcode 128 which is the same error code than
-    # returned by 'git pull' inside a non-git repo directory
-    $stderr.puts 'fatal: Not a git repository (or any of the parent directories): .git'
-    exit 128
-end
 
-# root is the main directory of this git repo
-root = `git rev-parse --show-toplevel`.strip
+# if not inside a git repository
+if [[ -z `git status 2>/dev/null` ]]; then
+  # write the error message in the stderr
+  echo "fatal: Not a git repository (or any of the parent directories): .git" >&2
+  # exit with exitcode 128 which is the same error code
+  # returned by 'git pull' inside a non-git repo directory
+  exit 128
+fi
 
+# by default the maximum of displayed users is 10, means only the top 10 commiters
+# you can modify this count by passing a new number as first argument, ie: git summary 5
+[[ $1 =~ ^[[:digit:]]+$ && $1 -gt 0 ]] && max=$1 || max=10
+
+# the local root directory of this git repository
+root=`git rev-parse --show-toplevel`
 # try to get the project name from the remote origin url
-origin = `git remote -v | grep -E "^origin" | head -1`.strip
-# if the remote origin is defined, extract the project name...
-if origin.size > 0
-    puts "project  : " + origin[origin.rindex('/')+1..origin.rindex('.git')-1]
-# ...otherwise get the name of the root directory
+origin=`git remote -v | grep -E "^origin" | head -1 | cut -c 8-999 | sed 's/[[:blank:]].*//'`
+# if the remote origin is defined, extract the project name
+if [[ -n "$origin" ]]; then
+  origin=`echo "$origin" | sed -e 's/.git$//' -e 's/^.*\///'`
+# otherwise get the name of the $root directory
 else
-    puts "project  : " + root[root.rindex('/')+1..-1]
-end
+  origin=`echo "$root" | sed 's/^.*\///'`
+fi
 
-# check if it's a new born repo (without any commit yet)
-init = `git status | grep -E "^# Initial commit" -c`.strip
+echo "project  : $origin"
 
-# it init = 1, nothing was commited
-if init == '1'
-    puts 'repo age : no commit'
-    puts 'commits  : 0'
+# check if it's a new born repository (without any commit yet)
+init=`git status | grep "^# Initial commit"`
+if [[ -n "$init" ]]; then
+  echo 'repo age : no commit'
+  echo 'commits  : 0'
 else
-    puts "repo age : " + `git log --format="%cr" | tail -n 1 | sed 's/ ago//'`.strip
-    puts "commits  : " + `git log --oneline --no-color | wc -l | tr -d ' '`.strip
-end
+  echo "repo age : `git log --format='%cr' | tail -n 1 | sed 's/ ago//'`"
+  # the count of commits in this repository
+  commits=`git log --oneline --no-color | wc -l | tr -d ' '`
+  echo "commits  : $commits"
+fi
 
-# count the tracked files from the root directory
-puts "files    : " + `git ls-files "$root" | wc -l | tr -d ' '`.strip
+echo "files    : `git ls-files "$root" | wc -l | tr -d ' '`"
 
-if init == '1'
-    puts 'authors  : 0'
+# extract commit count within $shortlog line
+get_commit() {
+  echo "$1" | sed -e 's/^[[:blank:]]*//' -e 's/[[:blank:]].*//'
+}
+# extract username within $shortlog line
+get_username() {
+  echo "$1" | sed -e 's/^[[:blank:]]*[[:digit:]]*[[:blank:]]*//'
+}
+
+# if new born repository
+if [[ -n "$init" ]]; then
+  echo 'authors  : 0'
 else
-    # authors count
-    authors = `git shortlog -s | wc -l | tr -d ' '`.strip.to_i
-    puts "authors  : #{authors}"
+  # the count of commits then the username
+  shortlog=`git shortlog -n -s`
 
-    # commits by author show in one line:
-    # -> commit count
-    # -> commit percentage
-    # -> author name
-    puts
-    puts 'commits by author:'
-    sum = 0
-    dat = []
-    `git shortlog -n -s`.split("\n").each do |e|
-        m = e.match /^\s*(\d+)\s+(.*)$/
-        if ! m.nil? and m.captures.size == 2
-            pi   = m.captures[0].to_i
-            sum += pi
-            dat << [pi, m.captures[1].strip]
-        end
-    end
-    siz1 = dat[0][0].to_s.size
-    dat.map! do |e|
-        [e[0], sprintf("%2.1f%%", 100 * e[0].to_f / sum), e[1]]
-    end
-    siz2 = dat[0][1].size
-    dat.each do |e|
-        printf "  %#{siz1}s  %#{siz2}s  %s\n", e[0], e[1], e[2]
-    end
+  # the count of commiters in this repository
+  authors=`echo "$shortlog" | wc -l | tr -d ' '`
+  echo "authors  : $authors"
+  echo
 
-    # last commits by author show:
-    # -> the 10 last commit by author (most recent first)
-    # -> commit negative index (-1 means the previous commit)
-    if authors == 1
-        puts
-        puts 'last commits:'
-    else
-        puts
-        puts 'last commits by author:'
-    end
+  [[ $authors -le $max ]] && echo 'commits by author:' || echo "commits by author (the $max first):"
 
-    dat = []
-    hashes = `git log --format='%h'`.strip.split "\n"
-    log = `git shortlog -n --format="%h %s"`.strip.split "\n"
-    log.each do |e|
-        next if e.size == 0
+  # reduce the count of users with the $max count
+  shortlog=`echo "$shortlog" | head -n $max`
 
-        if e[0] != ' '
-            dat << [e.strip, []]
-        else
-            dat.last[1] << e.strip
-        end
-    end
-    siz = 0
-    dat.each do |e|
-        e[1] = e[1].last(10).reverse
-        e[1].map! do |ee|
-            idx = "-#{hashes.index(ee[0..6])+1}"
-            if idx.size > siz
-                siz = idx.size
-            end
-            msg = ee[8..-1]
-            if msg.size > 100
-                msg = msg[0..97]+"..."
-            end
-            ee  = [idx, msg]
-        end
-    end
+  # the count of commits of the best commiter
+  highest=`get_commit $(echo "$shortlog" | head -n 1)`
+  # count of chars of the highest percentage
+  size_percent=`printf "%2.1f" $(echo "$highest/$commits*100" | bc -l | tr '.' ',') | gwc -L`
+  # count of chars of the longest username
+  size_authors=`get_username "$(echo "$shortlog")" | gwc -L`
 
-    idx = dat.size - 1
-    dat.each_with_index do |e, i|
-        puts e[0]
-        e[1].each do |ee|
-            printf "  %#{siz}s  %s\n", ee[0], ee[1]
-        end
-        puts if i != idx
-    end
-end
+  # display the commits by authors table
+  echo "$shortlog" | while read l; do
+    count=`get_commit "$l"`
+    percent=`echo "$count/$commits*100" | bc -l | tr '.' ','`
+    printf "  %5s  %$size_percent.1f%%  %s\n" $count $percent "`get_username "$l"`"
+  done
+  echo
+
+  if [[ $authors -eq 1 ]]; then
+    echo 'last commits:'
+  else
+    [[ $authors -le $max ]] && echo 'last commits by author:' || echo "last commits by author (the $max first):"
+  fi
+
+  # the log by user: short hash then timestamp then log message
+  biglog=`git shortlog --format="%h %at %s"`
+  # just the short hash of each commit
+  hashes=`git log --format='%h'`
+
+
+  # display the last commits by author table
+  declare -i idx=0
+  echo "$shortlog" | while read l; do
+    username=`get_username "$l"`
+    # logs of $username
+    userlog=$(echo "$biglog" | sed -n "/^$username (/,\$p" | sed -n '2,/^$/p' | sed '/^$/d')
+    # coount of commits of $username
+    commits=`echo "$userlog" | wc -l | tr -d ' '`
+    # count of different days of commits of $username
+    days=`echo "$userlog" | while read l; do
+      # convert timestamp to human date
+      timestamp=$(echo "$l" | cut -f2 -d" ")
+      date -r "$timestamp" +%Y-%m-%d
+    done | uniq | wc -l | tr -d ' '`
+
+    echo -n "$username ($commits commit"
+    [[ $commits -gt 1 ]] && echo -n "s"
+    echo -n " in $days day"
+    [[ $days -gt 1 ]] && echo -n "s"
+    echo "):"
+
+    # table of 10 latests commits of $username
+    echo "$userlog" | tail -n 10 | gtac  | while read l; do
+      index=`echo "$hashes" | grep -n "^$(echo "$l" | cut -c 1-7)" | cut -f1 -d:`
+      printf "  %5s  %s\n" -$index "`echo "$l" | cut -c 20-999`"
+    done
+
+    idx+=1
+    [[ $idx -ne $authors ]] && echo
+  done
+fi
