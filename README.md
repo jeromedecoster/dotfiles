@@ -113,6 +113,15 @@ crap
 crap ..
 ```
 
+* <a href="https://github.com/jeromedecoster/dotfiles/blob/master/osx/bin/lt" target="_blank">lt</a> is an advanced <a href="https://github.com/mxcl/homebrew/blob/master/Library/Formula/tree.rb" target="_blank">tree</a> listing
+
+```bash
+# list the pwd
+lt
+# limits the max depth to 3 directories
+lt -3
+```
+
 * <a href="https://github.com/jeromedecoster/dotfiles/blob/master/osx/bin/manh" target="_blank">manh</a> allows you to read the <a href="http://en.wikipedia.org/wiki/Man_page" target="_blank">man pages</a> within your browser, nicely styled
 
 ```bash
