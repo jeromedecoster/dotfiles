@@ -886,12 +886,8 @@ user_files() {
   copy ~/.dotfiles/osx/user/.inputrc
 
   # copy config files silently
-  mkdir -p ~/.dotfiles/.cache
-  cp ~/.dotfiles/osx/config/terminal-bright-256.sh ~/.dotfiles/.cache
-  cp ~/.dotfiles/osx/config/terminal-bright.sh ~/.dotfiles/.cache
-  cp ~/.dotfiles/osx/config/terminal-dark-256.sh ~/.dotfiles/.cache
-  cp ~/.dotfiles/osx/config/terminal-dark.sh ~/.dotfiles/.cache
-  cp ~/.dotfiles/osx/config/terminal.sh ~/.dotfiles/.cache
+  mkdir -p ~/.dotfiles/.cache/terminal
+  cp ~/.dotfiles/osx/config/terminal/* ~/.dotfiles/.cache/terminal/
 
   local h=hub a=@ o=ome c=com d=deco
   local s=ster g=git w=work j=jer

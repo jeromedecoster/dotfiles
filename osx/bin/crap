@@ -14,9 +14,10 @@
 #
 # crap files also includes:
 # empty directories
+# dead links
 # zero ko files
 #
-# with option [-acdz], the command only list the removable files
+# with option [-acdlz], the command only list the removable files
 #
 # without option, the command enter an interactive mode,
 # prompt the user to select the kind of files to remove
@@ -27,8 +28,9 @@
 
 # DEPENDENCIES
 # ============
-# svnroot   - is ~/.dotfiles/osx/bin/svnroot
+# greadlink - is installed with the coreutils homebrew formula
 # grealpath - is installed with the coreutils homebrew formula
+# svnroot   - is ~/.dotfiles/osx/bin/svnroot
 
 
 # write the usage message in the stderr and exit 1
@@ -37,6 +39,7 @@ usage() {
     echo option: -a list all
     echo '        -c list crap files'
     echo '        -d list empty directories'
+    echo '        -l list dead links'
     echo '        -z list 0 ko files'
     exit 1
   } >&2
@@ -44,16 +47,18 @@ usage() {
 
 crap=
 empty=
+dead=
 zero=
 path=
 
 for e in "${@}"; do
   # it's a valid argument
-  if [[ "$e" =~ ^-[acdz]$ ]]; then
+  if [[ "$e" =~ ^-[acdlz]$ ]]; then
     case "$e" in
-      '-a') crap=1; empty=1; zero=1 ;;
+      '-a') crap=1; empty=1; dead=1; zero=1 ;;
       '-c') crap=1  ;;
       '-d') empty=1 ;;
+      '-l') dead=1  ;;
       '-z') zero=1  ;;
     esac
   # it's a valid directory
@@ -71,7 +76,7 @@ done
 [[ -z "$path" ]] && path=. || path=`echo "$path" | sed 's/\/*$//'`
 
 # no option passed, enter interactive mode
-if [[ -z "$crap" && -z "$empty" && -z "$zero" ]]; then
+if [[ -z "$crap" && -z "$empty" && -z "$dead" && -z "$zero" ]]; then
   declare -i nbr=0
 
   crap=`crap -c "$path"`
@@ -86,6 +91,12 @@ if [[ -z "$crap" && -z "$empty" && -z "$zero" ]]; then
                           echo -e "${STDOUT_HIGHLIGHT}empty dir${COL_RES} $f"
                         done
 
+  dead=`crap -l "$path"`
+  [[ -n "$dead" ]] && nbr=nbr+1 && echo "$dead" \
+                    | while read f; do
+                        echo -e "${STDOUT_HIGHLIGHT}dead link${COL_RES} $f"
+                      done
+
   zero=`crap -z "$path"`
   [[ -n "$zero" ]] && nbr=nbr+1 && echo "$zero" \
                     | while read f; do
@@ -99,6 +110,7 @@ if [[ -z "$crap" && -z "$empty" && -z "$zero" ]]; then
   [[ $nbr -gt 1 ]]  && echo "  a) all" && chars=A
   [[ -n "$crap" ]]  && echo "  c) crap files" && chars+=c
   [[ -n "$empty" ]] && echo "  d) empty directories" && chars+=d
+  [[ -n "$dead" ]]  && echo "  l) dead links" && chars+=l
   [[ -n "$zero" ]]  && echo "  z) 0 ko files" && chars+=z
   echo
 
@@ -117,6 +129,7 @@ if [[ -z "$crap" && -z "$empty" && -z "$zero" ]]; then
 
   [[ $r == 'a' || $r == 'c' ]] && echo "$crap"  | while read f; do rm -fr "$f"; done
   [[ $r == 'a' || $r == 'd' ]] && echo "$empty" | while read f; do rm -fr "$f"; done
+  [[ $r == 'a' || $r == 'l' ]] && echo "$dead"  | while read f; do rm -f  "$f"; done
   [[ $r == 'a' || $r == 'z' ]] && echo "$zero"  | while read f; do rm -f  "$f"; done
 
   # interactive mode stops here
@@ -208,7 +221,7 @@ if [[ $empty -eq 1 ]]; then
 
   # nerd command ;)
   empty=`find -E "$path" -type d ! -regex ".*/\.(git|svn)($|/.*)" \
-                          ! -regex ".*/node_modules($|/.*)" 2>/dev/null \
+                                 ! -regex ".*/node_modules($|/.*)" 2>/dev/null \
     | sed "s/^\.\///" \
     | grep -v "^$path$" \
     | while read dir; do
@@ -227,10 +240,29 @@ if [[ $empty -eq 1 ]]; then
   fi
 fi
 
+# dead links detection
+if [[ $dead -eq 1 ]]; then
+  dead=`find -E "$path" -type l ! -regex ".*/\.(git|svn)($|/.*)" \
+                                ! -regex ".*/node_modules($|/.*)" 2>/dev/null \
+    | sed "s/^\.\///" | while read l; do
+      [[ -z $(greadlink -e "$l") ]] && echo "$l"
+    done`
+
+  # under git or svn repository, tracked files will not be listed
+  if [[ -n "$tracked" ]]; then
+    echo "$dead" | while read l; do
+      # use grealpath from coreutils formula
+      [[ -z `echo "$tracked" | egrep "^$(grealpath "$l")$"` ]] && echo "$l"
+    done
+  else
+    echo "$dead"
+  fi
+fi
+
 # 0 ko files detection
 if [[ $zero -eq 1 ]]; then
   zero=`find -E "$path" -empty -type f ! -regex ".*/\.(git|svn)($|/.*)" \
-                                 ! -regex ".*/node_modules($|/.*)" 2>/dev/null \
+                                       ! -regex ".*/node_modules($|/.*)" 2>/dev/null \
     | sed "s/^\.\///"`
 
   # under git or svn repository, tracked files will not be listed

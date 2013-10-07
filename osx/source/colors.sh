@@ -49,7 +49,7 @@ unset -f terminal_brightness
 if [[ $TERM_COLORS -eq 256 ]]; then
   # COL_BLA='\033[38;5;0m'
   COL_RED='\033[38;5;196m'     ; export COL_RED
-  # COL_GRE='\033[38;5;46m'
+  COL_GRE='\033[38;5;46m'      ; export COL_GRE
   # COL_YEL='\033[38;5;226m'
   COL_BLU='\033[38;5;21m'      ; export COL_BLU
   COL_YEL='\033[38;5;226m'     ; export COL_YEL
@@ -141,7 +141,7 @@ if [[ $TERM_COLORS -eq 256 ]]; then
   # COL_BLU_PIN3='\033[38;5;129m'
   # COL_BLU_PIN4='\033[38;5;165m'
   # COL_BLU_CYA1='\033[38;5;27m'
-  # COL_BLU_CYA2='\033[38;5;33m'
+  COL_BLU_CYA2='\033[38;5;33m'; export COL_BLU_CYA2
   # COL_BLU_CYA3='\033[38;5;39m'
   # COL_BLU_CYA4='\033[38;5;45m'
   # COL_BLU_WHI1='\033[38;5;63m'
@@ -177,15 +177,15 @@ fi
 COL_RES='\033[0m'; export COL_RES
 
 # source the terminal variables
-source ~/.dotfiles/.cache/terminal.sh
+source ~/.dotfiles/.cache/terminal/terminal.sh
 # terminal with 256 colors
 if [[ $TERM_COLORS -eq 256 ]]; then
   [[ $TERM_BACKGROUND_BRIGHTNESS -gt 128 ]] \
-    && source ~/.dotfiles/.cache/terminal-bright-256.sh \
-    || source ~/.dotfiles/.cache/terminal-dark-256.sh
+    && source ~/.dotfiles/.cache/terminal/terminal-bright-256.sh \
+    || source ~/.dotfiles/.cache/terminal/terminal-dark-256.sh
 # terminal with 8 colors
 else
   [[ $TERM_BACKGROUND_BRIGHTNESS -gt 128 ]] \
-    && source ~/.dotfiles/.cache/terminal-bright.sh \
-    || source ~/.dotfiles/.cache/terminal-dark.sh
+    && source ~/.dotfiles/.cache/terminal/terminal-bright.sh \
+    || source ~/.dotfiles/.cache/terminal/terminal-dark.sh
 fi

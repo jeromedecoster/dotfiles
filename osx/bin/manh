@@ -64,7 +64,7 @@ if ARGV.size == 1
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <link href="manh.css" rel="stylesheet" type="text/css">
+  <link href="style.css" rel="stylesheet" type="text/css">
 </head>
 <body>
 <div id="content">
@@ -77,8 +77,8 @@ EOF
   # copy stylesheet and fonts if needed
   # the webfonts won't work in Firefox if they are not
   # in the same folder than the HTML file
-  src = path '~/.dotfiles/osx/config'
-  %w{gbold.ttf gbold.woff gbook.ttf gbook.woff manh.css}.each do |f|
+  src = path '~/.dotfiles/osx/config/manh'
+  %w{gbold.ttf gbold.woff gbook.ttf gbook.woff style.css}.each do |f|
     unless File.exist? "#{folder}/#{f}"
       FileUtils.cp "#{src}/#{f}", folder
     end

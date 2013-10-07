@@ -179,17 +179,17 @@ __prompt_advanced() {
 prompt() {
   # inner functions
   function get_file() {
-    [[ $1 != 'color' ]] && echo ~/.dotfiles/.cache/terminal.sh && return
+    [[ $1 != 'color' ]] && echo ~/.dotfiles/.cache/terminal/terminal.sh && return
 
     if [[ $TERM_COLORS -eq 256 ]]; then
       [[ $TERM_BACKGROUND_BRIGHTNESS -gt 128 ]]       \
-        && echo ~/.dotfiles/.cache/terminal-bright-256.sh \
-        || echo ~/.dotfiles/.cache/terminal-dark-256.sh
+        && echo ~/.dotfiles/.cache/terminal/terminal-bright-256.sh \
+        || echo ~/.dotfiles/.cache/terminal/terminal-dark-256.sh
 
     else
       [[ $TERM_BACKGROUND_BRIGHTNESS -gt 128 ]]   \
-        && echo ~/.dotfiles/.cache/terminal-bright.sh \
-        || echo ~/.dotfiles/.cache/terminal-dark.sh
+        && echo ~/.dotfiles/.cache/terminal/terminal-bright.sh \
+        || echo ~/.dotfiles/.cache/terminal/terminal-dark.sh
     fi
   }
   function modif_file() {
