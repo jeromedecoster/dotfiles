@@ -132,6 +132,24 @@ mh grep
 
 * <a href="https://github.com/jeromedecoster/dotfiles/blob/master/osx/bin/svnroot" target="_blank">svnroot</a> return the local repository root of a svn repository
 
+* <a href="https://github.com/jeromedecoster/dotfiles/blob/master/osx/bin/t" target="_blank">t</a> touch multiple files at once, creates directories recursively if necessary
+
+```bash
+# touch file inside path/to
+t path/to/file
+# touch multiple files
+t file1 file2
+```
+
+* <a href="https://github.com/jeromedecoster/dotfiles/blob/master/osx/bin/tx" target="_blank">tx</a> is an evolution of <a href="https://github.com/jeromedecoster/dotfiles/blob/master/osx/bin/t" target="_blank">t</a>. Chmod them as bash or ruby executables
+
+```bash
+# creates a bash executable
+tx file1
+# creates a ruby executable
+tx -r file2
+```
+
 - - -
 
 <a name="osx-git-extensions"/>

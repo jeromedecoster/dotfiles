@@ -32,19 +32,12 @@ finder() {
   arch -i386 pwd &>/dev/null
   [[ $? -eq 0 ]] && cmd="arch -i386 osascript" || cmd="osascript"
   eval "$cmd" <<EOF
-    tell application "System Events"
-      set app_title to (title of application processes whose frontmost is true) as string
-    end tell
     tell application "Finder"
       activate
       open ("$absolute" as POSIX file)
       set current view of front window to column view
+      log ""
     end tell
-    if app_title is equal to "iTerm" then
-      tell application "iTerm" to activate
-    else if app_title is equal to "Terminal" then
-      tell application "Terminal" to activate
-    end if
 EOF
 }
 

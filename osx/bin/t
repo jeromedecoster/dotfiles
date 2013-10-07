@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# DESCRIPTION
+# ===========
+# t is the new touch, yo
+# touch multiple files at once
+# creates directories recursively if necessary
+
+
+# no argument, write the usage message in the stderr and exit 1
+[[ $# -eq 0 ]] && { echo 'usage: t [file] [file] ...'
+                    echo '       t [path/to/file] ...'
+                    exit 1
+                  } >&2
+
+for e in "${@}"; do
+  dir=`dirname "$e"`
+  # creates the path
+  [[ $dir != '.' ]] && mkdir -p "$dir"
+  touch "$e"
+done
