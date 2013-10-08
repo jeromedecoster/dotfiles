@@ -921,18 +921,52 @@ chrome_extensions() {
 
   # inner functions
   function installed() {
-    # for all extensions id given as argument
-    for e in $@; do
-      # the first non installed extension abort the function, nothing is returned
-      [[ ! -d ~/Library/Application\ Support/Google/Chrome/Default/Extensions/$e ]] && return
-    done
-    # otherwise return something
-    echo 1
+    # check if the extensions $1 is installed
+    # if the directory does not exists, the extension is not installed
+    if [[ ! -d ~/Library/Application\ Support/Google/Chrome/Default/Extensions/$1 ]]; then
+      # if the chrome install report exists
+      if [[ -f ~/.dotfiles/.cache/extensions/chrome ]]; then
+        # if the count of refused installations for the extension $1 is lower than 3 echo 0
+        # means no, it is not installed
+        if [[ `grep $1 ~/.dotfiles/.cache/extensions/chrome | cut -c 1` -lt 3 ]]; then
+          echo 0
+        # otherwise echo 2
+        # means no, it is not installed, but it is skipped
+        else
+          echo 2
+        fi
+      # otherwise echo 0
+      # means no, it is not installed
+      else
+        echo 0
+      fi
+    # the directory exists, echo 1
+    # means yes, it is installed
+    else
+      echo 1
+    fi
+  }
+  function update_report() {
+    local file=~/.dotfiles/.cache/extensions/chrome
+    # creates the file if needed
+    [[ ! -f "$file" ]] && mkdir -p ~/.dotfiles/.cache/extensions && touch "$file"
+
+    # the count of refused installations for this extension
+    local count=`grep $1 "$file" | cut -c 1`
+    if [[ -z "$count" ]]; then
+      echo "1 $1" >> "$file"
+    else
+      count=$(($count + 1))
+      local tmp=`mktemp /tmp/chrome.XXXXX`
+      sed "s/.*$1$/$count $1/" "$file" > $tmp && mv $tmp "$file"
+      rm -f $tmp
+    fi
   }
   function install() {
     local name=`blue "$1"`
     echo -n -e "check $name chrome extension..."
-    if [[ -z `installed $2` ]]; then
+    local status=`installed $2`
+    if [[ $status -eq 0 ]]; then
       notok
       while true; do
         echo -e -n "install $name? [Yn]: "
@@ -944,18 +978,39 @@ chrome_extensions() {
         esac
       done
 
-      [[ "$r" == 'y' ]] && browser $3 && console_frontmost
+      if [[ "$r" == 'y' ]]; then
+        browser $3
+        console_frontmost
+      else
+        update_report $2
+      fi
+    # the extension will not be installed
     else
-      ok
+      # echo OK or SKIP
+      [[ $status -eq 1 ]] && ok || echo `green SKIP`
     fi
   }
 
   printf "check `blue "chrome extensions"`..."
-  [[ -n `installed cfhdojbkjhnklbpkdaibdccddilifddb \
-                   nipdlgebaanapcphbcidpmmmkcecpkhg \
-                   bcjindcccaagfpapjjmafapmmgkkhgoa \
-                   jnihajbhpnppcggbcgedagnkighmdlei` ]] && ok && return
-  notok
+  local all=
+  while read id; do
+    all="$all"`installed "$id"`
+  done < <(cat <<EOF
+cfhdojbkjhnklbpkdaibdccddilifddb
+nipdlgebaanapcphbcidpmmmkcecpkhg
+bcjindcccaagfpapjjmafapmmgkkhgoa
+jnihajbhpnppcggbcgedagnkighmdlei
+EOF)
+
+  # if $all contains at least one 0, means not installed
+  if [[ `echo "$all" | grep -o "0" | wc -l` -gt 0 ]]; then
+    notok
+  else
+    # if $all contains at least one 2, means skipped
+    # otherwise means contains only 1, means all installed
+    [[ `echo "$all" | grep -o "2" | wc -l` -gt 0 ]] && echo `green SKIP` || ok
+    return
+  fi
 
   echo "autoskip: You have `yellow "10 seconds"` to answer the following question"
   console_frontmost
@@ -965,7 +1020,7 @@ chrome_extensions() {
     echo -n "install `blue "chrome extensions"`? [yN]: "
     read -t 10 r
     # timeout return exitcode 1
-    [[ $? -eq 1 ]] && echo 'n' && r='n' && break
+    [[ $? -eq 1 ]] && echo 'n' && break
     r=$(echo "$r" | tr '[A-Z]' '[a-z]')
     case "$r" in
       y|n) break ;;
@@ -988,9 +1043,17 @@ chrome_extensions() {
     install LiveReload \
             jnihajbhpnppcggbcgedagnkighmdlei \
             https://chrome.google.com/webstore/detail/livereload/jnihajbhpnppcggbcgedagnkighmdlei
+
+  # not skipped, explicitly answered n
+  elif [[ "$r" == 'n' ]]; then
+    update_report cfhdojbkjhnklbpkdaibdccddilifddb
+    update_report nipdlgebaanapcphbcidpmmmkcecpkhg
+    update_report bcjindcccaagfpapjjmafapmmgkkhgoa
+    update_report jnihajbhpnppcggbcgedagnkighmdlei
   fi
 
   unset -f installed
+  unset -f update_report
   unset -f install
 }
 
@@ -1004,20 +1067,53 @@ firefox_extensions() {
 
   # inner functions
   function installed() {
-    local profile
-    # for all extensions id given as argument
-    for e in $@; do
-      # the first non installed extension abort the function, nothing is returned
-      profile="$(find ~/Library/Application\ Support/Firefox/Profiles -type d -depth 1 -name '*.default')"
-      [[ ! "$profile" || ! -f "$profile/extensions/$e" ]] && return
-    done
-    # otherwise return something
-    echo 1
+    # check if the extensions $1 is installed
+    local profile=`find ~/Library/Application\ Support/Firefox/Profiles -type d -depth 1 -name '*.default'`
+    # if the file $profile/extensions/$e does not exists, the extension is not installed
+    if [[ ! -f "$profile/extensions/$1" ]]; then
+      # if the firefox install report exists
+      if [[ -f ~/.dotfiles/.cache/extensions/firefox ]]; then
+        # if the count of refused installations for the extension $1 is lower than 3 echo 0
+        # means no, it is not installed
+        if [[ `grep $1 ~/.dotfiles/.cache/extensions/firefox | cut -c 1` -lt 3 ]]; then
+          echo 0
+        # otherwise echo 2
+        # means no, it is not installed, but it is skipped
+        else
+          echo 2
+        fi
+      # otherwise echo 0
+      # means no, it is not installed
+      else
+        echo 0
+      fi
+    # the file exists, echo 1
+    # means yes, it is installed
+    else
+      echo 1
+    fi
+  }
+  function update_report() {
+    local file=~/.dotfiles/.cache/extensions/firefox
+    # creates the file if needed
+    [[ ! -f "$file" ]] && mkdir -p ~/.dotfiles/.cache/extensions && touch "$file"
+
+    # the count of refused installations for this extension
+    local count=`grep $1 "$file" | cut -c 1`
+    if [[ -z "$count" ]]; then
+      echo "1 $1" >> "$file"
+    else
+      count=$(($count + 1))
+      local tmp=`mktemp /tmp/firefox.XXXXX`
+      sed "s/.*$1$/$count $1/" "$file" > $tmp && mv $tmp "$file"
+      rm -f $tmp
+    fi
   }
   function install() {
     local name=`blue "$1"`
     echo -n -e "check $name firefox extension..."
-    if [[ -z `installed $2` ]]; then
+    local status=`installed $2`
+    if [[ $status -eq 0 ]]; then
       notok
       while true; do
         echo -e -n "install $name? [Yn]: "
@@ -1029,20 +1125,40 @@ firefox_extensions() {
         esac
       done
 
-      [[ "$r" == 'y' ]] && open -a Firefox.app $3 && console_frontmost
+      if [[ "$r" == 'y' ]]; then
+        open -a Firefox.app $3
+        console_frontmost
+      else
+        update_report $2
+      fi
+    # the extension will not be installed
     else
-      ok
+      # echo OK or SKIP
+      [[ $status -eq 1 ]] && ok || echo `green SKIP`
     fi
   }
 
   printf "check `blue "firefox extensions"`..."
-  [[ -n `installed {d10d0bf8-f5b5-c8b4-a8b2-2b9879e08c5d}.xpi \
-                   firebug@software.joehewitt.com.xpi \
-                   netexport@getfirebug.com.xpi \
-                   {DDC359D1-844A-42a7-9AA1-88A850A938A8}.xpi \
-                   livereload@livereload.com.xpi \
-                   firebug@software.joehewitt.com.xpi` ]] && ok && return
-  notok
+  local all=
+  while read xpi; do
+    all="$all"`installed "$xpi"`
+  done < <(cat <<EOF
+{d10d0bf8-f5b5-c8b4-a8b2-2b9879e08c5d}.xpi
+firebug@software.joehewitt.com.xpi
+netexport@getfirebug.com.xpi
+{DDC359D1-844A-42a7-9AA1-88A850A938A8}.xpi
+livereload@livereload.com.xpi
+EOF)
+
+  # if $all contains at least one 0, means not installed
+  if [[ `echo "$all" | grep -o "0" | wc -l` -gt 0 ]]; then
+    notok
+  else
+    # if $all contains at least one 2, means skipped
+    # otherwise means contains only 1, means all installed
+    [[ `echo "$all" | grep -o "2" | wc -l` -gt 0 ]] && echo `green SKIP` || ok
+    return
+  fi
 
   echo "autoskip: You have `yellow "10 seconds"` to answer the following question"
   console_frontmost
@@ -1083,6 +1199,7 @@ firefox_extensions() {
   fi
 
   unset -f installed
+  unset -f update_report
   unset -f install
 }
 
@@ -1110,8 +1227,9 @@ user_files
 chrome_extensions
 firefox_extensions
 
+clear_backup
+
 echo "yeah baby"
 exit
 
 check_dtrace
-clear_backup

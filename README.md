@@ -47,12 +47,12 @@ bash -c "$(curl -fsSL raw.github.com/jeromedecoster/dotfiles/master/osx/install)
   * <a href="https://github.com/mxcl/homebrew/blob/master/Library/Formula/man2html.rb" target="_blank">man2html</a>
   * <a href="https://github.com/mxcl/homebrew/blob/master/Library/Formula/coreutils.rb" target="_blank">coreutils</a>
 * Install the latest versions of <a href="https://www.ruby-lang.org" target="_blank">Ruby</a> 1.9.3 and 2.0.0 with rbenv in `~/.rbenv/versions`
-* Prompt you to install some Chrome extensions
+* Prompt you to install some Chrome extensions, skipped after 3 refusals
   * <a href="https://chrome.google.com/webstore/detail/empty-title/cfhdojbkjhnklbpkdaibdccddilifddb" target="_blank">Adblock Plus</a>
   * <a href="https://chrome.google.com/webstore/detail/prettyprint/nipdlgebaanapcphbcidpmmmkcecpkhg" target="_blank">PrettyPrint</a>
   * <a href="https://chrome.google.com/webstore/detail/json-formatter/bcjindcccaagfpapjjmafapmmgkkhgoa" target="_blank">JSON Formatter</a>
   * <a href="https://chrome.google.com/webstore/detail/livereload/jnihajbhpnppcggbcgedagnkighmdlei" target="_blank">LiveReload</a>
-* Prompt you to install some Firefox extensions
+* Prompt you to install some Firefox extensions, skipped after 3 refusals
   * <a href="https://addons.mozilla.org/en-US/firefox/addon/adblock-plus" target="_blank">Adblock Plus</a>
   * <a href="https://addons.mozilla.org/en-US/firefox/addon/firebug" target="_blank">Firebug</a>
   * <a href="https://getfirebug.com/releases/netexport" target="_blank">Net Export</a>
@@ -61,6 +61,7 @@ bash -c "$(curl -fsSL raw.github.com/jeromedecoster/dotfiles/master/osx/install)
 * Install or update this git repository in `~/.dotfiles`
 * Copy some dotfiles in your `~`. The previously existing files are backuped in `~/.dotfiles/.backup`
   * <a href="https://github.com/jeromedecoster/dotfiles/blob/master/osx/user/.bash_profile" target="_blank">.bash_profile</a>
+  * <a href="https://github.com/jeromedecoster/dotfiles/blob/master/osx/user/.bashrc" target="_blank">.bashrc</a>
   * <a href="https://github.com/jeromedecoster/dotfiles/blob/master/osx/user/.inputrc" target="_blank">.inputrc</a>
 * Prompt you to configure `~/.gitconfig`
 
