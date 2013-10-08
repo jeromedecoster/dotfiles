@@ -22,20 +22,20 @@ export PATH
 unset -f path_remove
 
 # source some files in ~/.dotfiles/source/
-for file in ~/.dotfiles/osx/source/{colors,prompt,aliases,functions,libs,completion,extras}.sh; do
+for file in ~/.dotfiles/osx/source/{colors,prompt,aliases,functions,dotfiles,libs,completion,extras}.sh; do
   # if the file is readable by the user, source it
   [[ -r "$file" ]] && source "$file"
 done
 unset file
 
 # rbenv executable found but _rbenv is not yet a function
-if [[ `type -P rbenv` && -z `type -t _rbenv` ]]; then
+if [[ -n `type -P rbenv` && -z `type -t _rbenv` ]]; then
   # init rbenv
   eval "`rbenv init -`"
 fi
 
 # if the current ruby is the system version
-if [[ -n `rbenv version | grep "^system"` ]]; then
+if [[ -n `type -P rbenv` && -n `rbenv version | grep "^system"` ]]; then
   latest() {
     ls -1 ~/.rbenv/versions | egrep "^$1-p[[:digit:]]+$" | tail -n 1
   }

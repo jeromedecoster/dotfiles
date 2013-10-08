@@ -883,17 +883,16 @@ user_files() {
   create_backup
 
   copy ~/.dotfiles/osx/user/.bash_profile
+  copy ~/.dotfiles/osx/user/.bashrc
   copy ~/.dotfiles/osx/user/.inputrc
 
   # copy config files silently
   mkdir -p ~/.dotfiles/.cache/terminal
   cp ~/.dotfiles/osx/config/terminal/* ~/.dotfiles/.cache/terminal/
 
-  local h=hub a=@ o=ome c=com d=deco
-  local s=ster g=git w=work j=jer
-  if [[ `whoami` == "$j$o.$d$s" ]]; then
-    git_config user.name "$j$o${a}$w"
-    git_config user.email "$g$h$a$j$o$d$s.$c"
+  if [[ `whoami` == `openssl enc -base64 -d <<< amVyb21lLmRlY29zdGVyCg==` ]]; then
+    git_config user.name `openssl enc -base64 -d <<< amVyb21lQHdvcmsK`
+    git_config user.email `openssl enc -base64 -d <<< Z2l0aHViQGplcm9tZWRlY29zdGVyLmNvbQo=`
   else
     prompt_git_config user.name
     prompt_git_config user.email
