@@ -570,6 +570,44 @@ check_homebrew() {
 }
 
 #
+# Check if command line tools are installed. It's required to compile homebrew formulas
+# If no, abort the script
+#
+check_command_line_tools() {
+  echo -n "check `blue 'command line tools'`..."
+  local path=`type -P brew`
+  local error=
+
+  # homebrew detected
+  if [[ -n "$path" && -x "$path" ]]; then
+    path=`eval "$path --prefix"`/Library/Homebrew
+    # dirty hack to call the command line tools detection done by homebrew
+    local check=`ruby -e "$:.unshift('$path'); require 'global'; puts MacOS::CLT.installed?" 2>/dev/null`
+    # $check is true, everything is ok
+    if [[ -n `echo $check | grep 'true'` ]]; then
+      ok
+    # $check is false, command line tools are not installed
+    elif [[ -n `echo $check | grep 'false'` ]]; then
+      error="abort: the `red 'command line tools'` must be installed."
+      error="$error Please do it manually `blue 'https://developer.apple.com/downloads/'`"
+    # otherwise means the ruby call return an error
+    # the detection done by homebrew must have changed. New method name?
+    else
+      error="fail: `red check_command_line_tools` return an error"
+    fi
+  # homebrew not detected, probably impossible here
+  else
+    error="fail: `red homebrew` not detected"
+  fi
+
+  if [[ -n "$error" ]]; then
+    notok
+    echo "$error"
+    exit 1
+  fi
+}
+
+#
 # Check if $1 was installed with homebrew. If yes, just upgrade it
 # If no, install $1 with homebrew
 #
@@ -1207,6 +1245,7 @@ EOF)
 path_local_first
 check_minimal_git
 check_homebrew
+check_command_line_tools
 check_formula git
 
 check_rvm
