@@ -71,6 +71,7 @@ done < <(cat <<EOF
 .DS_Store
 .fseventsd
 .git
+node_modules
 .Spotlight-V100
 .svn
 .TemporaryItems

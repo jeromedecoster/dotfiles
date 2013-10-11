@@ -175,14 +175,16 @@ if [[ $crap -eq 1 ]]; then
                       -o -name .TemporaryItems 2>/dev/null \
     | sed "s/^\.\///"`
 
-  # under git or svn repository, tracked files will not be listed
-  if [[ -n "$tracked" ]]; then
-    echo "$crap" | while read l; do
-      # use grealpath from coreutils formula
-      [[ -z `echo "$tracked" | egrep "^$(grealpath "$l")$"` ]] && echo "$l"
-    done
-  else
-    echo "$crap"
+  if [[ -n "$crap" ]]; then
+    # under git or svn repository, tracked files will not be listed
+    if [[ -n "$tracked" ]]; then
+      echo "$crap" | while read l; do
+        # use grealpath from coreutils formula
+        [[ -z `echo "$tracked" | egrep "^$(grealpath "$l")$"` ]] && echo "$l"
+      done
+    else
+      echo "$crap"
+    fi
   fi
 fi
 
@@ -229,14 +231,16 @@ if [[ $empty -eq 1 ]]; then
         [[ -n "$dir" ]] && echo "$dir"
       done`
 
-  # under git or svn repository, tracked files will not be listed
-  if [[ -n "$tracked" ]]; then
-    echo "$empty" | while read l; do
-      # use grealpath from coreutils formula
-      [[ -z `echo "$tracked" | egrep "^$(grealpath "$l")$"` ]] && echo "$l"
-    done
-  else
-    echo "$empty"
+  if [[ -n "$empty" ]]; then
+    # under git or svn repository, tracked files will not be listed
+    if [[ -n "$tracked" ]]; then
+      echo "$empty" | while read l; do
+        # use grealpath from coreutils formula
+        [[ -z `echo "$tracked" | egrep "^$(grealpath "$l")$"` ]] && echo "$l"
+      done
+    else
+      echo "$empty"
+    fi
   fi
 fi
 
@@ -248,14 +252,16 @@ if [[ $dead -eq 1 ]]; then
       [[ -z $(greadlink -e "$l") ]] && echo "$l"
     done`
 
-  # under git or svn repository, tracked files will not be listed
-  if [[ -n "$tracked" ]]; then
-    echo "$dead" | while read l; do
-      # use grealpath from coreutils formula
-      [[ -z `echo "$tracked" | egrep "^$(grealpath "$l")$"` ]] && echo "$l"
-    done
-  else
-    echo "$dead"
+  if [[ -n "$dead" ]]; then
+    # under git or svn repository, tracked files will not be listed
+    if [[ -n "$tracked" ]]; then
+      echo "$dead" | while read l; do
+        # use grealpath from coreutils formula
+        [[ -z `echo "$tracked" | egrep "^$(grealpath "$l")$"` ]] && echo "$l"
+      done
+    else
+      echo "$dead"
+    fi
   fi
 fi
 
@@ -265,13 +271,15 @@ if [[ $zero -eq 1 ]]; then
                                        ! -regex ".*/node_modules($|/.*)" 2>/dev/null \
     | sed "s/^\.\///"`
 
-  # under git or svn repository, tracked files will not be listed
-  if [[ -n "$tracked" ]]; then
-    echo "$zero" | while read l; do
-      # use grealpath from coreutils formula
-      [[ -z `echo "$tracked" | egrep "^$(grealpath "$l")$"` ]] && echo "$l"
-    done
-  else
-    echo "$zero"
+  if [[ -n "$zero" ]]; then
+    # under git or svn repository, tracked files will not be listed
+    if [[ -n "$tracked" ]]; then
+      echo "$zero" | while read l; do
+        # use grealpath from coreutils formula
+        [[ -n "$l" && -z `echo "$tracked" | egrep "^$(grealpath "$l")$"` ]] && echo "$l"
+      done
+    else
+      echo "$zero"
+    fi
   fi
 fi
