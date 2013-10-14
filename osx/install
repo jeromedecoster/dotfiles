@@ -11,7 +11,10 @@ red() {
   echo -e "\033[0;31m$1\033[0m"
 }
 blue() {
-  echo -e "\033[0;34m$1\033[0m"
+  # define $brightness if not already setted
+  [[ -z "$brightness" ]] && brightness=`terminal_brightness`
+  # for readability, echo in blue if the background is bright, otherwise in cyan
+  [[ $brightness -gt 128 ]] && echo -e "\033[0;34m$1\033[0m" || echo -e "\033[0;36m$1\033[0m"
 }
 yellow() {
   echo -e "\033[0;33m$1\033[0m"
@@ -21,6 +24,42 @@ ok() {
 }
 notok() {
   echo `red KO`
+}
+
+#
+# Check the brightness of the terminal background
+# Echo a value between 0 and 255
+#
+terminal_brightness() {
+  local cmd
+  arch -i386 pwd &>/dev/null
+  [[ $? -eq 0 ]] && cmd="arch -i386 osascript" || cmd="osascript"
+  if [[ $TERM_PROGRAM == 'iTerm.app' ]]; then
+    eval "$cmd" <<EOF
+  tell application "iTerm"
+    tell the current terminal
+      tell the current session
+        set col to background color
+        set r to (item 1 of col) / 257
+        set g to (item 2 of col) / 257
+        set b to (item 3 of col) / 257
+        round (0.2126 * r) + (0.7152 * g) + (0.0722 * b)
+      end tell
+    end tell
+  end tell
+EOF
+  # if it's not iTerm, it must be the classic Terminal, no other alternative
+  else
+    eval "$cmd" <<EOF
+  tell application "Terminal"
+    set col to background color of first window
+    set r to (item 1 of col) / 257
+    set g to (item 2 of col) / 257
+    set b to (item 3 of col) / 257
+    round (0.2126 * r) + (0.7152 * g) + (0.0722 * b)
+  end tell
+EOF
+  fi
 }
 
 #
@@ -1241,6 +1280,74 @@ EOF)
   unset -f install
 }
 
+check_imagemagick() {
+  # inner function
+  function install() {
+    if [[ ! -d /opt/ImageMagick ]]; then
+      while true; do
+        echo -n "do you want to `blue 'sudo mkdir /opt/ImageMagick'`? [Yn]: "
+        read r
+        r=$(echo "$r" | tr '[A-Z]' '[a-z]')
+        case "$r" in
+          y|n) break ;;
+           '') r='y' && break ;;
+        esac
+      done
+      if [[ "$r" == 'y' ]]; then
+        sudo mkdir -p -m a=rwx /opt/ImageMagick
+      else
+        echo 'abort: Install aborted by user'
+        return
+      fi
+    fi
+
+    check_chown -v /opt/ImageMagick
+    # you are still no the owner of the directory
+    # means you reply 'n' to the previous command
+    if [[ `check_owner /opt/ImageMagick` -eq 0 ]]; then
+      echo 'abort: Install aborted by user'
+      return
+    fi
+
+    local tmp=`mktemp -d /tmp/imagemagick.XXXXX`
+    # download the version $1
+    local url='https://github.com/jeromedecoster/executables/blob/master/osx'
+    url="${url}/imagemagick/imagemagick-$1.tar.bz2?raw=master"
+    echo "download and install `blue "imagemagick $1"`"
+    curl -L -# -o $tmp/archive.tar.bz2 "$url"
+    # extract in the temp directory
+    tar -xjf $tmp/archive.tar.bz2 -C $tmp
+    # then copy the content to not override the owner of /opt/ImageMagick
+    cp -r $tmp/ImageMagick/* /opt/ImageMagick
+
+    rm -rf $tmp
+  }
+
+  printf "check `blue imagemagick`..."
+  local path=`which convert`
+  # the newest version we can install, hosted in github.com/jeromedecoster/executables
+  local version=6.8.6-3
+  # imagemagick is not installed or not managed by this dotfiles
+  if [[ -z "$path" || "$path" != '/opt/ImageMagick/bin/convert' ]]; then
+    notok
+    install $version
+  else
+    local current=`convert -h | head -n 1 | cut -f 3 -d ' '`
+    # the installed version is older
+    if [[ `ruby -e "puts '$version' > '$current'" | grep 'true'` ]]; then
+      notok
+      # uninstall
+      [[ `check_owner /opt/ImageMagick` -eq 0 ]] && check_chown -v /opt/ImageMagick
+      rm -rf /opt/ImageMagick/*
+      # then install
+      install $version
+    else
+      ok
+    fi
+  fi
+
+  unset -f install
+}
 
 path_local_first
 check_minimal_git
@@ -1265,6 +1372,8 @@ user_files
 
 chrome_extensions
 firefox_extensions
+
+check_imagemagick
 
 clear_backup
 

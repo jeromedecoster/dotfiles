@@ -15,7 +15,8 @@ path_remove() {
 
 # set /usr/local/bin before /usr/bin in the $PATH
 PATH=/usr/local/bin:`path_remove /usr/local/bin`
-# add ~/.dotfiles/osx/bin then /usr/local/homebrew/bin to the $PATH
+# add ~/.dotfiles/osx/bin then /usr/local/homebrew/bin then /opt/ImageMagick/bin to the $PATH
+PATH=/opt/ImageMagick/bin:$PATH
 PATH=/usr/local/homebrew/bin:$PATH
 PATH=~/.dotfiles/osx/bin:$PATH
 export PATH
