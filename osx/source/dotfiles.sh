@@ -115,44 +115,48 @@ EOF)
       echo -e "replace ${STDOUT_HIGHLIGHT}~/.gitconfig$COL_RES"
     fi
   }
+  function imagemagick() {
+    sudo rm -r /opt/ImageMagick
+    [[ ! -d /opt/ImageMagick ]] && echo -e "remove ${STDOUT_HIGHLIGHT}/opt/ImageMagick$COL_RES"
+    rm -f ~/.dotfiles/osx/bin/pngquant
+    echo -e "remove ${STDOUT_HIGHLIGHT}~/.dotfiles/osx/bin/pngquant$COL_RES"
+  }
   function prompt_remove() {
     echo
     echo '  b) homebrew and formulas'
     echo '  e) browsers extensions'
+    echo '  i) imagemagick and pngquant'
     echo '  u) user files'
     echo
     while true; do
-      echo -n "what do you want remove? [beu] : "
+      echo -n "what do you want remove? [beiu] : "
       read r
       r=$(echo "$r" | tr '[A-Z]' '[a-z]')
       case "$r" in
-        b) homebrew; break;;
-        e) extensions; break;;
-        u) user_files; break;;
+        b) homebrew   ; break;;
+        e) extensions ; break;;
+        i) imagemagick; break;;
+        u) user_files ; break;;
       esac
     done
   }
-  function prompt_main() {
-    echo
-    echo '  u) update dotfiles'
-    echo '  r) remove some installed components'
-    echo
+  function prompt_update() {
     while true; do
-      echo -n "select an action [rU] : "
+      echo -n "update dotfiles? [Ny] : "
       read r
       r=$(echo "$r" | tr '[A-Z]' '[a-z]')
       case "$r" in
-           r) clear && prompt_remove; break;;
-        u|'') update; break;;
+        y) update; break;;
+        n|'') break;;
       esac
     done
   }
 
-  prompt_main
+  [[ $1 == '-r' ]] && prompt_remove || prompt_update
   unset -f update
   unset -f homebrew
   unset -f extensions
   unset -f user_files
   unset -f prompt_remove
-  unset -f prompt_main
+  unset -f prompt_update
 }
