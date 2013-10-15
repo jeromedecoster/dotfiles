@@ -1280,6 +1280,13 @@ EOF)
   unset -f install
 }
 
+#
+# Install a precompiled imagemagick because homebrew require xquartz installed to compile it
+# I do not want to install xquartz: https://xquartz.macosforge.org/landing/
+# It is a bloated and opaque software. It also require a manual install/update
+# Unfortunately, this is the opposite of what I want to facilitate the use of my dotfiles
+# The compiled version comes from http://cactuslab.com/imagemagick/
+#
 check_imagemagick() {
   # inner function
   function install() {
@@ -1294,7 +1301,7 @@ check_imagemagick() {
         esac
       done
       if [[ "$r" == 'y' ]]; then
-        sudo mkdir -p -m a=rwx /opt/ImageMagick
+        sudo mkdir -p /opt/ImageMagick
       else
         echo 'abort: Install aborted by user'
         return
@@ -1327,8 +1334,8 @@ check_imagemagick() {
   local path=`which convert`
   # the newest version we can install, hosted in github.com/jeromedecoster/executables
   local version=6.8.6-3
-  # imagemagick is not installed or not managed by this dotfiles
-  if [[ -z "$path" || "$path" != '/opt/ImageMagick/bin/convert' ]]; then
+  # imagemagick is not installed or not installed in /opt/ImageMagick
+  if [[ -z `echo "$path" | grep "/opt/ImageMagick/bin/convert$"` ]]; then
     notok
     install $version
   else
@@ -1347,6 +1354,74 @@ check_imagemagick() {
   fi
 
   unset -f install
+}
+
+#
+# Install a precompiled imagemagick because homebrew require xquartz installed to compile it
+# See check_imagemagick comments
+#
+check_pngquant() {
+  # inner function
+  function install() {
+    local tmp=`mktemp -d /tmp/pngquant.XXXXX`
+    # download the version $1
+    local url='https://github.com/jeromedecoster/executables/blob/master/osx'
+    url="${url}/pngquant/pngquant-$1.tar.bz2?raw=master"
+    echo "download and install `blue "pngquant $1"`"
+    curl -L -# -o $tmp/archive.tar.bz2 "$url"
+    # extract directly in the bin directory
+    tar -xjf $tmp/archive.tar.bz2 -C ~/.dotfiles/osx/bin/
+
+    rm -rf $tmp
+  }
+
+  printf "check `blue pngquant`..."
+  local path=`which pngquant`
+  # the newest version we can install, hosted in github.com/jeromedecoster/executables
+  local version=2.0.0
+  # pngquant is not installed or not installed within the dotfiles directory
+  if [[ -z `echo "$path" | grep "osx/bin/pngquant$"` ]]; then
+    notok
+    install $version
+  else
+    local current=`pngquant -V | head -n 1 | cut -f 1 -d ' '`
+    # the installed version is older
+    if [[ `ruby -e "puts '$version' > '$current'" | grep 'true'` ]]; then
+      notok
+      # uninstall
+      rm -f ~/.dotfiles/osx/bin/pngquant
+      # then install
+      install $version
+    else
+      ok
+    fi
+  fi
+
+  unset -f install
+}
+
+#
+# Homebrew install jpegtran but does not link it
+#
+link_jpegtran() {
+  printf "check `blue 'jpegtran link'`..."
+  local version=`brew ls jpeg-turbo --versions | rev | cut -d ' ' -f 1 | rev`
+  local link="`brew --prefix`/bin/jpegtran"
+  local target="`brew --prefix`/Cellar/jpeg-turbo/$version/bin/jpegtran"
+  # the link is already setted
+  if [[ `readlink "$link" 2>/dev/null` == "$target" ]]; then
+    ok
+  else
+    notok
+    printf "link `blue jpegtran`..."
+    if [[ -x "$target" ]]; then
+      ln -sf "$target" "$link"
+      ok
+    else
+      notok
+      echo "fail: `red "$target"` is not a valid target"
+    fi
+  fi
 }
 
 path_local_first
@@ -1374,6 +1449,10 @@ chrome_extensions
 firefox_extensions
 
 check_imagemagick
+check_pngquant
+check_formula optipng
+check_formula jpeg-turbo
+link_jpegtran
 
 clear_backup
 

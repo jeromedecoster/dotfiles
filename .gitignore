@@ -12,3 +12,4 @@ node_modules/
 .backup/
 .cache/
 osx/source/extras.sh
+osx/bin/pngquant
