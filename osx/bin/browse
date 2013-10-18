@@ -11,6 +11,7 @@
 # grealpath - is installed with the coreutils homebrew formula
 
 
+# write the usage message in the stderr and exit 1
 usage() {
   { echo 'usage: browse [options] [uri]'
     echo 'option: -c browse in chrome'

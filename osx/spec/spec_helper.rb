@@ -68,6 +68,13 @@ def support
   `svn add path/to/.zero`
   `svn commit -m "add some crap files"`
 
+  # init the jpeg repository
+  `mkdir -p #{SUPPORT}/assets/jpeg/path/to/directory`
+  `cp #{SPEC}/support/jpeg/*.jpg #{SUPPORT}/assets/jpeg`
+  `cp #{SPEC}/support/jpeg/convert-75p.jpg #{SUPPORT}/assets/jpeg/path/to/directory`
+  `cp #{SPEC}/support/gif/s-sfw-128c-perception.gif #{SUPPORT}/assets/jpeg/path/to/directory/gif-fake.jpg`
+  `cp #{SPEC}/support/png/bike-sfw-png24.png #{SUPPORT}/assets/jpeg/path/to/directory/png-fake.jpg`
+
   Dir.chdir cwd
 end
 
