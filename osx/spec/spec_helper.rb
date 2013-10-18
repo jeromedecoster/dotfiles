@@ -1,5 +1,6 @@
 require 'pathname'
 
+SPEC    = Pathname.new('~/.dotfiles/osx/spec').expand_path
 SUPPORT = Pathname.new('~/.dotfiles-support').expand_path
 
 # loads some require needed to execute tests

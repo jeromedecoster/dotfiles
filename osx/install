@@ -887,7 +887,7 @@ check_dotfiles() {
   else
     printf "install `blue "~/.dotfiles"` repository..."
     # git clone with redirect error in the temp file
-    git clone --quiet https://github.com/jeromedecoster/dotfiles.git ~/.dotfiles 2>$tmp
+    git clone --quiet --depth 1 https://github.com/jeromedecoster/dotfiles.git ~/.dotfiles 2>$tmp
     if [[ $? -ne 0 ]]; then
       notok
       # echo error and delete temp file
