@@ -46,6 +46,8 @@ bash -c "$(curl -fsSL raw.github.com/jeromedecoster/dotfiles/master/osx/install)
   * <a href="https://github.com/mxcl/homebrew/blob/master/Library/Formula/tree.rb" target="_blank">tree</a>
   * <a href="https://github.com/mxcl/homebrew/blob/master/Library/Formula/man2html.rb" target="_blank">man2html</a>
   * <a href="https://github.com/mxcl/homebrew/blob/master/Library/Formula/coreutils.rb" target="_blank">coreutils</a>
+  * <a href="https://github.com/mxcl/homebrew/blob/master/Library/Formula/optipng.rb" target="_blank">optipng</a>
+  * <a href="https://github.com/mxcl/homebrew/blob/master/Library/Formula/jpeg-turbo.rb" target="_blank">jpeg-turbo</a>
 * Install the latest versions of <a href="https://www.ruby-lang.org" target="_blank">Ruby</a> 1.9.3 and 2.0.0 with rbenv in `~/.rbenv/versions`
 * Prompt you to install some Chrome extensions, skipped after 3 refusals
   * <a href="https://chrome.google.com/webstore/detail/empty-title/cfhdojbkjhnklbpkdaibdccddilifddb" target="_blank">Adblock Plus</a>
@@ -82,6 +84,7 @@ The following steps are executed
   * setup an advanced <a href="https://github.com/jeromedecoster/dotfiles/blob/master/osx/source/prompt.sh" target="_blank">prompt</a> explained <a href="#osx-prompt">here</a>
   * define some <a href="https://github.com/jeromedecoster/dotfiles/blob/master/osx/source/aliases.sh" target="_blank">aliases</a>
   * define some <a href="https://github.com/jeromedecoster/dotfiles/blob/master/osx/source/functions.sh" target="_blank">functions</a> explained <a href="#osx-functions">here</a>
+  * the last sourced file, `extras.sh`, is a blank file where you can put all your personnals aliases, functions... This file is git ignored, created dynamically by the install script. So it will never modified when you will update to the dotfiles. All modifications done in other sourced files will be lost with updates
 * Checks that a good Ruby version is activated with rbenv
 
 - - -
@@ -112,6 +115,15 @@ b ..
 crap
 # list crap files from the parent directory
 crap ..
+```
+
+* <a href="https://github.com/jeromedecoster/dotfiles/blob/master/osx/bin/jpeg" target="_blank">jpeg</a> allows you to compress and/or optimize jpeg files or other images format
+
+```bash
+# optimize file.jpg and save it to the directory dest
+jpeg file.jpg -d dest
+# compress file.jpg with the mobile setting and save it as file-mobile.jpg
+jpeg -2 file.jpg -o file-mobile.jpg
 ```
 
 * <a href="https://github.com/jeromedecoster/dotfiles/blob/master/osx/bin/lt" target="_blank">lt</a> is an advanced <a href="https://github.com/mxcl/homebrew/blob/master/Library/Formula/tree.rb" target="_blank">tree</a> listing

@@ -57,6 +57,7 @@ usage() {
     echo '        -p progressive'
     echo '        -q quiet'
     echo '        -r recursive'
+    echo '        -w raw log, no colors'
     echo '        -4 desktop high'
     echo '        -3 desktop'
     echo '        -2 mobile'
