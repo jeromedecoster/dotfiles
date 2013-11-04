@@ -41,37 +41,37 @@ describe 'jpeg executable' do
   it 'indice' do
     # skip
 
-    indice('jpeg -a -n -w jpeg-q4.jpg').must_equal '4.0'
+    indice('jpeg -a -w jpeg-q4.jpg').must_equal '4.0'
 
-    indice('jpeg -a -w jpeg-q4-progressive.jpg').must_equal '4.0'
+    indice('jpeg -a -p -w jpeg-q4-progressive.jpg').must_equal '4.0'
 
-    indice('jpeg -a -n -w jpeg-q3.jpg').must_equal '3.0'
+    indice('jpeg -a -w jpeg-q3.jpg').must_equal '3.0'
 
-    indice('jpeg -a -w jpeg-q3-progressive.jpg').must_equal '3.0'
+    indice('jpeg -a -p -w jpeg-q3-progressive.jpg').must_equal '3.0'
 
-    indice('jpeg -a -n -w jpeg-q2.jpg').must_equal '2.0'
+    indice('jpeg -a -w jpeg-q2.jpg').must_equal '2.0'
 
-    indice('jpeg -a -w jpeg-q2-progressive.jpg').must_equal '2.0'
+    indice('jpeg -a -p -w jpeg-q2-progressive.jpg').must_equal '2.0'
 
-    indice('jpeg -a -n -w jpeg-q1.jpg').must_equal '1.0'
+    indice('jpeg -a -w jpeg-q1.jpg').must_equal '1.0'
 
-    indice('jpeg -a -w jpeg-q1-progressive.jpg').must_equal '1.0'
+    indice('jpeg -a -p -w jpeg-q1-progressive.jpg').must_equal '1.0'
 
-    indice('jpeg -a -w convert-25p.jpg').to_f.must_be :<, 1.0
+    indice('jpeg -a -p -w convert-25p.jpg').to_f.must_be :<, 1.0
 
-    indice('jpeg -a -w sfw-75p-nothing.jpg').to_f.must_be :>, 4.0
+    indice('jpeg -a -p -w sfw-75p-nothing.jpg').to_f.must_be :>, 4.0
   end
 
   it 'percentage' do
     # skip
 
-    percentage('jpeg -a -n -w jpeg-q4.jpg', 1).to_f.must_be :<, 0
+    percentage('jpeg -a -w jpeg-q4.jpg', 1).to_f.must_be :<, 0
 
-    percentage('jpeg -a -n -w jpeg-q4.jpg', 4).must_equal '0.0'
+    percentage('jpeg -a -w jpeg-q4.jpg', 4).must_equal '0.0'
 
-    percentage('jpeg -a -n -w jpeg-q1.jpg', 1).must_equal '0.0'
+    percentage('jpeg -a -w jpeg-q1.jpg', 1).must_equal '0.0'
 
-    percentage('jpeg -a -n -w jpeg-q1.jpg', 4).to_f.must_be :>, 0
+    percentage('jpeg -a -w jpeg-q1.jpg', 4).to_f.must_be :>, 0
   end
 
   it 'wrong format must be detected' do

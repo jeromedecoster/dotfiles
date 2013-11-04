@@ -10,10 +10,10 @@ describe 'jpeg executable' do
   # prevent the error 'shell-init: error retrieving current directory: getcwd ...'
   after  { Dir.chdir '/' }
 
-  it 'should create progressive jpeg without option n' do
+  it 'should create progressive jpeg with option -p' do
     # skip
 
-    o, e, s = Open3.capture3 "jpeg -w sfw-75p-nothing.jpg -o '#{SUPPORT}/jpeg'"
+    o, e, s = Open3.capture3 "jpeg -w -p sfw-75p-nothing.jpg -d '#{SUPPORT}/jpeg'"
     o.strip.wont_be_empty
     e.strip.must_be_empty
     s.exitstatus.must_equal 0
@@ -27,10 +27,10 @@ describe 'jpeg executable' do
     o.strip.split[6].must_equal '-'
   end
 
-  it 'should create baseline jpeg with option n' do
+  it 'should create baseline jpeg without option -p' do
     # skip
 
-    o, e, s = Open3.capture3 "jpeg -n -w sfw-75p-nothing.jpg -o '#{SUPPORT}/jpeg'"
+    o, e, s = Open3.capture3 "jpeg -w sfw-75p-nothing.jpg -d '#{SUPPORT}/jpeg'"
     o.strip.wont_be_empty
     e.strip.must_be_empty
     s.exitstatus.must_equal 0

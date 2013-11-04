@@ -41,7 +41,10 @@
 # ============
 # cjpeg    - is installed with the jpeg-turbo homebrew formula
 # djpeg    - is installed with the jpeg-turbo homebrew formula
+# gstat    - is installed with the coreutils homebrew formula
+# gdate    - is installed with the coreutils homebrew formula
 # jpegtran - is installed with the jpeg-turbo homebrew formula
+# map      - is my ~/.dotfiles/osx/bin/map executable
 
 
 # write the usage message in the stderr and exit 1
@@ -49,8 +52,9 @@ usage() {
   { echo 'usage: jpeg [options] [file]'
     echo '       jpeg [options] [directory]'
     echo 'option: -a analysis'
-    echo '        -n not progressive'
-    echo '        -o output directory'
+    echo '        -d output directory'
+    echo '        -o output file'
+    echo '        -p progressive'
     echo '        -q quiet'
     echo '        -r recursive'
     echo '        -4 desktop high'
@@ -61,51 +65,53 @@ usage() {
   } >&2
 }
 
+abort() {
+  echo "jpeg: $1" >&2
+  exit 1
+}
+
 analysis=
+directory=
+file=
 path=
-output=
-progressive=1
+progressive=
 quality=
 quiet=
 raw=
 recursive=
-statistic=
 
-for e in "${@}"; do
-  # add patterns to $ignore
-  if [[ $out -eq 1 ]]; then
-    # if everything is ok, set $output, removing trailing slash
-    # otherwise, exit with usage if $output already setted in a previous loop or not a directory
-    [[ -d "$e" && -z "$output" ]] && output=`echo "$e" | sed 's/\/*$//'` || usage
-    out=
-    continue
-  fi
-
-  # it's a valid file or directory
-  if [[ -e "$e" ]]; then
-    # exit with usage if $path already setted in a previous loop
-    [[ -z "$path" ]] && path="$e" || usage
-  # it's a valid argument
-  elif [[ "$e" =~ ^-[anoqrw1234]$ ]]; then
-    case "$e" in
-      '-a') analysis=1     ;;
-      '-n') progressive=   ;;
-      # next loop, add $output directory
-      '-o') out=1          ;;
-      '-q') quiet=1        ;;
-      '-r') recursive=1    ;;
-      '-w') raw=1          ;;
-         *) quality=${e:1} ;;
-    esac
-  # otherwise, exit with usage
-  else
-    usage
-  fi
+while [[ $# -ne 0 ]]; do
+  case $1 in
+    -a) analysis=1 ;;
+    -d) shift
+        [[ -n "$directory" ]] && abort 'option -d can be used only once'
+        [[ -f "$1" ]]         && abort 'option -d can not target a file'
+        [[ -n "$file" ]]      && abort 'options -d and -o can not be used together'
+        directory=`echo "$1" | sed 's/\/*$//'`
+      ;;
+    -h) usage ;;
+    -o) shift
+        [[ -n "$file" ]]      && abort 'option -o can be used only once'
+        [[ -d "$1" ]]         && abort 'option -o can not target a directory'
+        [[ -n "$directory" ]] && abort 'options -d and -o can not be used together'
+        file="$1"
+      ;;
+    -p) progressive=1 ;;
+    -q) quiet=1       ;;
+    -r) recursive=1   ;;
+    -w) raw=1         ;;
+    -1|-2|-3|-4) quality=${1:1} ;;
+     *) [[ -n "$path" ]] && abort 'the target file must be defined only once'
+        path="$1"
+      ;;
+  esac
+  shift
 done
 
 # if no path is given, works with pwd
 # otherwise remove trailing slash
 [[ -z "$path" ]] && path=. || path=`echo "$path" | sed 's/\/*$//'`
+
 
 # creates a jpeg with cjpeg
 # $1 : the path to the reference file
@@ -136,27 +142,11 @@ optimize() {
   eval "jpegtran -copy none -optimize $p -outfile $temp/optimize.jpg \"$1\""
 }
 
-# remap a value from a range to another range
-# $1 : the value to convert
-# $2 : the min value of reference range
-# $3 : the max value of reference range
-# $4 : the min value of destination range
-# $5 : the max value of destination range
-map() {
-  # awk is used to compute float easily
-  local data=`awk "BEGIN { a = ($4 + ($5 - $4) * (($1 - $2) / ($3 - $2)))
-                a = sprintf (\"%.1f\", a)
-                sub(/,/, \".\", a)
-                print a }"`
-
-  echo -n "$data"
-}
-
 # without raw mode, color_indice is used to adds color
 color_indice() {
   # warning: whitout 'echo | awk' you must use BEGIN instead END otherwise it fails
   # silently in 'echo "$files" | while read l; do' below
-  local sign=`awk "BEGIN { if ($1 > 4) { print \"+\" } else if ($1 < 1) { print \"-\" } }"`
+  local sign=`awk -v a=$1 'BEGIN { if (a > 4) { print "+" } else if (a < 1) { print "-" } }'`
   if [[ "$sign" == '-' ]]; then
     echo -e "$STDOUT_WARNING$1$COL_RES"
   elif [[ "$sign" == '+' ]]; then
@@ -171,13 +161,13 @@ color_indice() {
 # $2 : the new value
 percent() {
   # awk is used to compute float easily
-  local data=`awk "BEGIN { a = ($2 - $1) / $1 * 100
-               a = sprintf (\"%.1f\", a)
-               sub(/,/, \".\", a)
-               if (a == \"-0.0\") { a = \"0.0\" }
-               print a }"`
-
-  echo "$data"
+  awk -v from=$1 -v to=$2 'BEGIN{
+    a = (to - from) / from * 100
+    a = sprintf ("%.1f", a)
+    sub(/,/, ".", a)
+    if (a == "-0.0") { a = "0.0" }
+    print a
+  }'
 }
 
 # without raw mode, color_percent is used to adds signs, % char and color
@@ -221,21 +211,33 @@ if [[ "$analysis" -eq 1 ]]; then
 
   echo "$files" | while read l; do
 
-    # collect rdjpgcom datas
-    result=`rdjpgcom -verbose "$l" 2>&1`
-    # it is not a real JPEG
-    if [[ -n `echo "$result" | grep "Not a JPEG file"` ]]; then
+    # creates the jpeg in a $temp directory
+    temp=`mktemp -d /tmp/jpeg.XXXXX`
+
+    fmt=`identify -format %m "$l" 2>/dev/null`
+    if [[ -z "$fmt" ]]; then
       echo "jpeg: '$l' is not valid" >&2
       # report an error in the log and skip this loop
       echo -n 1 > $log
+      rm -rf $temp
       continue
     fi
 
-    temp=`mktemp -d /tmp/jpeg.XXXXX`
-    create "$l" 1 $progressive
-    create "$l" 2 $progressive
-    create "$l" 3 $progressive
-    create "$l" 4 $progressive
+    if [[ "$fmt" != 'JPEG' ]]; then
+      convert "$l" -quality 100 "$temp/from.jpg"
+    else
+      cp "$l" "$temp/from.jpg"
+    fi
+    from="$temp/from.jpg"
+
+    # collect rdjpgcom datas
+    result=`rdjpgcom -verbose "$from" 2>&1`
+
+    # temp=`mktemp -d /tmp/jpeg.XXXXX`
+    create "$from" 1 $progressive
+    create "$from" 2 $progressive
+    create "$from" 3 $progressive
+    create "$from" 4 $progressive
 
     ref=`gstat -c%s "$l"`
     size1=`gstat -c%s "$temp/1.jpg"`
@@ -259,15 +261,15 @@ if [[ "$analysis" -eq 1 ]]; then
     # with the option -1
     # so it's not a good idea to create a new jpeg, the filesize would be increased
     if [[ $ref -le $size2 ]]; then
-      # echo -n `map $ref $size1 $size2 1 2`" "
-      indice=`map $ref $size1 $size2 1 2`
+      indice=`map $ref $size1 $size2 1 2 1`
     elif [[ $ref -le $size3 ]]; then
-      # echo -n `map $ref $size2 $size3 2 3`" "
-      indice=`map $ref $size2 $size3 2 3`
+      indice=`map $ref $size2 $size3 2 3 1`
     else
-      # echo -n `map $ref $size3 $size4 3 4`" "
-      indice=`map $ref $size3 $size4 3 4`
+      indice=`map $ref $size3 $size4 3 4 1`
     fi
+
+    # if map returns an integer, adds a trailing .0
+    [[ -z `echo $indice | grep '\.'` ]] && indice="$indice.0"
 
     # displays the indice. Without raw mode, it is colored
     [[ -z "$raw" ]] && echo -n "`color_indice $indice` " || echo -n "$indice "
@@ -316,44 +318,54 @@ fi
 # creates jpeg
 echo "$files" | while read l; do
 
-  # collect rdjpgcom datas
-  result=`rdjpgcom -verbose "$l" 2>&1`
-  # it is not a real JPEG
-  if [[ -n `echo "$result" | grep "Not a JPEG file"` ]]; then
+  # creates the jpeg in a $temp directory
+  temp=`mktemp -d /tmp/jpeg.XXXXX`
+
+  fmt=`identify -format %m "$l" 2>/dev/null`
+  if [[ -z "$fmt" ]]; then
     echo "jpeg: '$l' is not valid" >&2
     # report an error in the log and skip this loop
     echo -n 1 > $log
+    rm -rf $temp
     continue
   fi
 
-  # creates the jpeg in a $temp directory
-  temp=`mktemp -d /tmp/jpeg.XXXXX`
+  if [[ "$fmt" != 'JPEG' ]]; then
+    convert "$l" -quality 100 "$temp/from.jpg"
+  else
+    cp "$l" "$temp/from.jpg"
+  fi
+  from="$temp/from.jpg"
+
   # $quality is setted, create new jpeg
   if [[ -n "$quality" ]]; then
-    create "$l" $quality $progressive
+    create "$from" $quality $progressive
     src="$temp/$quality.jpg"
   # otherwise, just optimize it with jpegtran
   else
-    optimize "$l"
+    optimize "$from"
     src="$temp/optimize.jpg"
   fi
 
   base="`basename "$l"`"
+  filename="${base%.*}"
 
-  # without $output directory, the file is generated with a timestamp
+  if [[ -n "$directory" ]]; then
+    dest="$directory/$filename.jpg"
+  elif [[ -n "$file" ]]; then
+    dest="$file"
+  # without $file or $directory, the file is generated with a timestamp
   # from path/to/file.jpg to path/to/file-165600437.jpg
-  if [[ -z "$output" ]]; then
-
+  else
     dir=`dirname "$l"`
     filename="${base%.*}"
 
     timestamp=`gdate +%H%M%S%N | cut -c 1-9`
     dest="$dir/$filename-$timestamp.jpg"
-
-  # otherwise from path/to/file.jpg to destination/file.jpg
-  else
-    dest="$output/$base"
   fi
+
+  dir=`dirname "$dest"`
+  [[ "$dir" != '.' ]] && mkdir -p "$dir"
 
   # existing $dest file is overwritten
   cp "$src" "$dest"
