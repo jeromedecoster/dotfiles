@@ -1,0 +1,45 @@
+#!/bin/bash
+
+# DESCRIPTION
+# ===========
+# convert a number from a range to another
+#
+# $1 : the number to convert
+# $2 : the min value of the reference range
+# $3 : the max value of the reference range
+# $4 : the min value of the target range
+# $5 : the max value of the target range
+# $6 : round the result to $6 decimal values
+
+# EXAMPLE
+# =======
+# map 0.9 0 1 0 100
+# returns 90
+
+# write the usage message in the stderr and exit 1
+usage() {
+  { echo 'usage: map value min1 max1 min2 max2 [decimal]'
+    exit 1
+  } >&2
+}
+
+[[ $# -eq 0 || $1 == '-h' ]] && usage
+
+awk -v val=$1 -v min1=$2 -v max1=$3 -v min2=$4 -v max2=$5 -v dec=$6 'BEGIN {
+  fmt = "%."dec"f"
+  if (val == min1) {
+    res = sprintf(fmt, min2)
+  }
+  else if (val == min2) {
+    res = sprintf(fmt, max2)
+  }
+  else {
+    res = sprintf(fmt, min2 + (max2 - min2) * ((val - min1) / (max1 - min1)))
+  }
+  sub(/,/, ".", res)
+  if (index(res, ".") > 0) {
+    sub(/0+$/, "", res)
+    sub(/\.$/, "", res)
+  }
+  print res
+}'

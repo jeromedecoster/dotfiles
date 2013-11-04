@@ -168,7 +168,7 @@ __prompt_advanced() {
   if [[ $PROMPT_CHAR_COLOR == '\033[0m' ]]; then
     PS1="$PS1\n\[${COL_RES}\]${PROMPT_CHAR}\[${COL_RES}\] "
   else
-    PS1="$PS1\n${PROMPT_CHAR_COLOR}${PROMPT_CHAR}\[${COL_RES}\] "
+    PS1="$PS1\n\[${PROMPT_CHAR_COLOR}\]${PROMPT_CHAR}\[${COL_RES}\] "
   fi
 }
 

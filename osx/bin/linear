@@ -1,0 +1,52 @@
+#!/bin/bash
+
+# DESCRIPTION
+# ===========
+# represents a linear function (equation of a line) and returns the value of the y-axis
+# according to the value on the x-axis
+#
+# $1 : the value on the x-axis
+# $2 : the x value of the first reference point
+# $3 : the y value of the first reference point
+# $4 : the x value of the second reference point
+# $5 : the y value of the second reference point
+# $6 : round the result to $6 decimal values
+
+# EXAMPLE
+# =======
+# linear 2 1 1 3 2 2
+# returns 1.5
+
+
+# write the usage message in the stderr and exit 1
+usage() {
+  { echo 'usage: linear value x0 y0 x1 y1 [decimal]'
+    exit 1
+  } >&2
+}
+
+[[ $# -eq 0 || $1 == '-h' ]] && usage
+
+awk -v val=$1 -v x0=$2 -v y0=$3 -v x1=$4 -v y1=$5 -v dec=$6 'BEGIN {
+  fmt = "%."dec"f"
+  if (val == x0) {
+    res = sprintf(fmt, y0)
+  }
+  else if (val == x1) {
+    res = sprintf(fmt, y1)
+  }
+  else {
+    if (x0 > x1) {
+      tx = x0; ty = y0
+      x0 = x1; y0 = y1
+      x1 = tx; y1 = ty
+    }
+    res = sprintf (fmt, ((y1 - y0) / (x1 - x0)) * val + (y1 - ((y1 - y0) / (x1 - x0)) * x1))
+  }
+  sub(/,/, ".", res)
+  if (index(res, ".") > 0) {
+    sub(/0+$/, "", res)
+    sub(/\.$/, "", res)
+  }
+  print res
+}'
