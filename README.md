@@ -46,6 +46,7 @@ bash -c "$(curl -fsSL raw.github.com/jeromedecoster/dotfiles/master/osx/install)
   * <a href="https://github.com/mxcl/homebrew/blob/master/Library/Formula/tree.rb" target="_blank">tree</a>
   * <a href="https://github.com/mxcl/homebrew/blob/master/Library/Formula/man2html.rb" target="_blank">man2html</a>
   * <a href="https://github.com/mxcl/homebrew/blob/master/Library/Formula/coreutils.rb" target="_blank">coreutils</a>
+  * <a href="https://github.com/mxcl/homebrew/blob/master/Library/Formula/wdiff.rb" target="_blank">wdiff</a>
   * <a href="https://github.com/mxcl/homebrew/blob/master/Library/Formula/optipng.rb" target="_blank">optipng</a>
   * <a href="https://github.com/mxcl/homebrew/blob/master/Library/Formula/jpeg-turbo.rb" target="_blank">jpeg-turbo</a>
 * Install the latest versions of <a href="https://www.ruby-lang.org" target="_blank">Ruby</a> 1.9.3 and 2.0.0 with rbenv in `~/.rbenv/versions`

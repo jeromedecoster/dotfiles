@@ -1448,6 +1448,7 @@ check_formula phantomjs
 check_formula tree
 check_formula man2html
 check_formula coreutils
+check_formula wdiff
 
 check_dotfiles
 user_files

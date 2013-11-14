@@ -39,10 +39,12 @@
 
 # DEPENDENCIES
 # ============
+# convert  - is installed with imagemagick
 # cjpeg    - is installed with the jpeg-turbo homebrew formula
 # djpeg    - is installed with the jpeg-turbo homebrew formula
 # gstat    - is installed with the coreutils homebrew formula
 # gdate    - is installed with the coreutils homebrew formula
+# identify - is installed with imagemagick
 # jpegtran - is installed with the jpeg-turbo homebrew formula
 # map      - is my ~/.dotfiles/osx/bin/map executable
 

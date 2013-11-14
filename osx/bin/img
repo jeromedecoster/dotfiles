@@ -1,0 +1,393 @@
+#!/bin/bash
+
+# DESCRIPTION
+# ===========
+# export interesting datas about an image
+#
+# with option -c you can compare the datas of two files
+
+# DEPENDENCIES
+# ============
+# gstat    - is installed with the coreutils homebrew formula
+# gwc      - is installed with the coreutils homebrew formula
+# identify - is installed with imagemagick
+# wdiff    - is installed with the wdiff homebrew formula
+
+# write the usage message in the stderr and exit 1
+usage() {
+  { echo 'usage: img [options] [file]'
+    echo '       img [options] [directory]'
+    echo 'option: -c [file] compare with this file'
+    echo '        -d output directory'
+    echo '        -o output file'
+    echo '        -r recursive'
+    echo '        -w raw'
+    exit 1
+  } >&2
+}
+
+abort() {
+  echo "img: $1" >&2
+  exit 1
+}
+
+compare=
+directory=
+file=
+histogram=
+path=
+raw=
+recursive=
+
+while [[ $# -ne 0 ]]; do
+  case $1 in
+    -c) shift
+        [[ ! -f "$1" ]] && abort 'option -c must target a file'
+        compare="$1"
+      ;;
+    -d) shift
+        [[ -n "$directory" ]] && abort 'option -d can be used only once'
+        [[ -f "$1" ]]         && abort 'option -d can not target a file'
+        [[ -n "$file" ]]      && abort 'options -d and -o can not be used together'
+        [[ -z "$1" ]]         && abort 'option -d can not be empty'
+        directory="$1"
+      ;;
+    -g) histogram=1 ;;
+    -h) usage       ;;
+    -o) shift
+        [[ -n "$file" ]]      && abort 'option -o can be used only once'
+        [[ -d "$1" ]]         && abort 'option -o can not target a directory'
+        [[ -n "$recursive" ]] && abort 'options -r and -o can not be used together'
+        [[ -n "$directory" ]] && abort 'options -d and -o can not be used together'
+        [[ -z "$1" ]]         && abort 'option -o can not be empty'
+        file="$1"
+      ;;
+    -r) [[ -n "$file" ]] && abort 'options -r and -o can not be used together'
+        recursive=1
+      ;;
+    -w) raw=1 ;;
+     *) [[ -n "$path" ]] && abort 'the target file must be defined only once'
+        path="$1"
+      ;;
+  esac
+  shift
+done
+
+# if no path is given, works with pwd
+# otherwise remove trailing slash
+[[ -z "$path" ]] && path=. || path=`echo "$path" | sed 's/\/*$//'`
+
+# lasts checks
+[[ -n "$file" && -d "$path" ]] && abort 'option -o can not be used with target directory'
+
+[[ -f "$path" && "$path" == "$compare" ]] && abort 'option -c can not target the same file'
+
+
+# collect $files. If $path is a file, treat only this file
+if [[ -f "$path" ]]; then
+  files="$path"
+# otherwise, collect all png in the $path directory
+else
+  depth='-maxdepth 0'
+  [[ -n "$recursive" ]] && depth=
+  files=`eval "find -E $path/* -type f $depth -regex '.*(bmp|gif|jpf|pcx|png|tga|tif)($|/.*)' 2>/dev/null" \
+          | sed 's/^\.\///'`
+fi
+
+# no files to treat
+[[ -z "$files" ]] && exit 0
+
+
+# remove a line from $result where we can found $1
+rem() {
+  result=`echo "$result" | sed -E "/$1/d"`
+}
+
+# remove a range of lines from $result
+# the range is built like this:
+# - find the lines with the pattern $1
+# - keep only the 2 first result
+# - remove the range from the first line to the second
+rem_range() {
+  local range="`echo "$result" | sed -E -n "/$1/=" | head -n 2`"
+  if [[ `echo "$range" | wc -l` -eq 2 ]]; then
+    range=`echo "$range" | tr '\n' ',' | sed 's/,$//'`
+    result=`echo "$result" | sed "${range}d"`
+  fi
+}
+
+# remove a range of line from $result
+# the range is built like this:
+# - find the line who match the pattern $1
+# - keep the following lines while they starts with a blank char
+# - remove the range from the first line to the last line with a blank char
+rem_part() {
+  local from=`echo "$result" | sed -n "/$1/="`
+  if [[ -n "$from" ]]; then
+    local to=`echo "$result" \
+                | sed -n "/^[ ]/=" \
+                | awk -v from=$from '{ if($1 > from) { print } }' \
+                | awk ' { prv=cur; cur=$1; if (prv != "" && cur != prv + 1) { print prv; exit } }
+                        END { print cur }' \
+                | head -n 1`
+    result=`echo "$result" | sed "$from,${to}d"`
+  fi
+}
+
+# remove the artifacts part
+rem_artifacts() {
+  rem '^[ ]{2}(filename|verbose):'
+  if [[ -z `echo "$result" | sed -n "/^Artifacts:/{n;p;}" | egrep '^[ ]{2}'` ]]; then
+    rem '^Artifacts:'
+  fi
+}
+
+# remove the properties part
+rem_properties() {
+  rem '^[ ]{2}(date|signature):'
+  if [[ -z `echo "$result" | sed -n "/^Properties:/{n;p;}" | egrep '^[ ]{2}'` ]]; then
+    rem '^Properties:'
+  fi
+}
+
+# clean the indetify result
+# remove annoying datas and more
+change_result() {
+  # remove starting 2 blank chars
+  result=`echo "$result" | sed -e '1s/^Image: \(.*\)/  Image: \1/' -e 's/^..//'`
+
+  # if animated gif
+  local colors=
+  if [[ -n `echo "$result" | grep '^Format: GIF'` && -n `echo "$result" | grep '^Scene:'` ]]; then
+    colors=`echo "$result" | grep '^Colors: ' | sed 's/^Colors: //' | tr '\n' ',' | sed 's/,$//'`
+    rem '^Colors:'
+  fi
+
+  # remove from 'Filesize' to the end of the file
+  result=`echo "$result" | sed '/^Filesize:/,$ d'`
+
+  # remove some lines
+  rem '^(Alpha|Base type|Compose|Dispose|Intensity|Iterations):'
+  rem '^(Rendering intent|Orientation|Page geometry):'
+  # remove compression, endianess, units if undefined
+  rem '^(Compression|Endianess|Units): Undefined'
+  # remove tainted is it is false
+  rem '^Tainted: False'
+  # remove tainted is it is false
+  rem '^(Resolution|Print size):'
+
+  # regular image have Image statistics
+  if [[ -n `echo "$result" | grep '^Image statistics:'` ]]; then
+    rem_range '^(Channel|Image) statistics:'
+  # grayscale image does not have Image statistics
+  else
+    rem_part '^Channel statistics:'
+  fi
+
+  rem_range '^[ ]{2,4}(Overall|skewness):'
+  rem_range '^(Chromaticity|[ ]{2}white point):'
+
+  rem_artifacts
+  rem_properties
+
+  [[ -z "$histogram" ]] && rem_part '^Histogram:'
+
+  rem_part '^Colormap:'
+
+  # simplify format
+  result=`echo "$result" | sed -E 's/^(Format: [^ ]*).*/\1/'`
+
+  # insert with + height
+  result=`echo "$result" | awk '{ print $0
+                                  if ($1 ~ /^Geometry:/){
+                                    s = substr($0, 11)
+                                    i = index(s, "x") - 1
+                                    print "Width: "substr(s, 0, i)
+                                    s = substr(s, i+2)
+                                    i = index(s, "+") - 1
+                                    print "Height: "substr(s, 0, i)
+                                  } }'`
+
+  # insert alpha
+  if [[ -n `echo "$result" | grep '^Type: .*Alpha$'` ]]; then
+    [[ -z `convert "$1" -format %c histogram:info:- | grep -v ',255)'` ]] && alpha=False || alpha=True
+    result=`echo "$result" | awk -v alpha=$alpha '{ print $0
+                                                    if ($0 ~ /^Type: .*Alpha$/){
+                                                      print "Alpha: "alpha
+                                                    } }'`
+  fi
+
+  if [[ -z `echo "$result" | grep '^Colors:'` ]]; then
+
+    [[ -z "$colors" ]] && colors=`identify -format %k "$1"`
+
+    result=`echo "$result" | awk -v col=$colors ' { if ($0 ~ /^Gamma:/){
+                                                      print "Colors: "col
+                                                      print $0
+                                                    } else {
+                                                      print $0
+                                                    } }'`
+  fi
+
+  # filesize + number pixels
+  local wid hei pix oct kil
+  wid=`echo "$result" | grep '^Width:'  | sed 's/^Width: //'`
+  hei=`echo "$result" | grep '^Height:' | sed 's/^Height: //'`
+  pix=`echo "$wid * $hei" | bc`
+  oct=`gstat -c%s "$1"`
+  kil=`awk -v oct=$oct 'BEGIN { a = sprintf("%.1f", oct / 1024)
+                                sub(/,/, ".", a)
+                                print "("a"KB)"
+                              }'`
+
+  result=`{ echo "$result"
+            echo "Filesize: $oct $kil"
+            echo "Number pixels: $pix"
+          }`
+
+  # if animated gif
+  result=`echo "$result" | sed -E 's/^Scene: 0 of (.*)/Frames: \1/'`
+}
+
+# show the $temp/wdiff.txt result in the console
+show_wdiff() {
+  local col size size_res size_left
+  size=`gwc -L "$temp/wdiff.txt" | cut -d ' ' -f 1`
+  size_res=`echo "$COL_RES" | gwc -L`
+  size_left=`echo "$STDOUT_DIFF_MODIFIED" | gwc -L | xargs echo "$size + $size_res +" | bc`
+
+  cat "$temp/wdiff.txt" | while IFS="\n" read l; do
+    [[ -n `echo "$l" | egrep '\[\-.+\-\]'` ]] && left=1  || left=
+    [[ -n `echo "$l" | egrep '\{\+.+\+\}'` ]] && right=1 || right=
+
+    # no diff
+    if [[ -z "$left" && -z "$right" ]]; then
+      printf "%-${size}s | %s\n" "$l" "$l"
+
+    # diff on the left and on the right
+    elif [[ -n "$left" && -n "$right" ]]; then
+      [[ -n "$raw" ]] && col= || col=$STDOUT_DIFF_MODIFIED
+      echo "$l" | awk -v col=$col -v res=$COL_RES -v size=$size '{
+        s = $0
+        while (1 < 2) {
+          i0 = index(s, " {+")
+          i1 = index(s, "+}")
+          if (i0 == 0 || i1 == 0) { break }
+          s = substr(s, 0, i0-1)""substr(s, i1+2)
+        }
+        s1 = s
+        while (1 < 2) {
+          i0 = index(s1, "[-")
+          i1 = index(s1, "-]")
+          if (i0 == 0 || i1 == 0) { break }
+          s1 = substr(s1, 0, i0-1)""substr(s1, i0+2, i1-i0-2)""substr(s1, i1+2)
+        }
+        s2 = s
+        while (1 < 2) {
+          i0 = index(s2, "[-")
+          i1 = index(s2, "-]")
+          if (i0 == 0 || i1 == 0) { break }
+          s2 = substr(s2, 0, i0-1)""col""substr(s2, i0+2, i1-i0-2)""res""substr(s2, i1+2)
+        }
+        # print s
+        siz = length(s2) - length(s1) + size
+        printf "%-"siz"s | ", s2
+      }'
+
+      echo "$l" | awk -v col=$col -v res=$COL_RES '{
+        s = $0
+        while (1 < 2) {
+          i0 = index(s, "[-")
+          i1 = index(s, "-]")
+          if (i0 == 0 || i1 == 0) { break }
+          s = substr(s, 0, i0-1)""substr(s, i1+2)
+        }
+        while (1 < 2) {
+          i0 = index(s, " {+")
+          i1 = index(s, "+}")
+          if (i0 == 0 || i1 == 0) { break }
+          s = substr(s, 0, i0-1)""col""substr(s, i0+3, i1-i0-3)""res""substr(s, i1+2)
+        }
+        print s
+      }'
+
+    # diff only on the left
+    elif [[ -n "$left" && -z "$right" ]]; then
+      [[ -n "$raw" ]] && col= || col=$STDOUT_DIFF_REMOVED
+      echo "$l" | awk -v col=$col -v res=$COL_RES -v size=$size '{
+          s = $0
+          i0 = index(s, "[-")
+          i1 = index(s, "-]")
+          s1  = substr(s, 0, i0-1)""substr(s, i0+2, i1-i0-2)""substr(s, i1+2)
+          s2  = substr(s, 0, i0-1)""col""substr(s, i0+2, i1-i0-2)""res""substr(s, i1+2)
+          siz = length(s2) - length(s1) + size
+          printf "%-"siz"s <\n", s2
+        }'
+
+    # diff only on the right
+    else
+      [[ -n "$raw" ]] && col= || col=$STDOUT_DIFF_ADDED
+      echo "$l" | awk -v col=$col -v res=$COL_RES -v size=$size '{
+          s = $0
+          i0 = index(s, "{+")
+          i1 = index(s, "+}")
+          s  = substr(s, 0, i0-1)""col""substr(s, i0+2, i1-i0-2)""res""substr(s, i1+2)
+          printf "%-"size"s > %s\n", " ", s
+        }'
+    fi
+  done
+}
+
+
+# compare $path with $compare
+if [[ -n "$compare" ]]; then
+  # creates the datas in a $temp directory
+  temp=`mktemp -d /tmp/img.XXXXX`
+
+  # export the datas of $path
+  result=`identify -verbose "$path" 2>&1`
+  [[ -z "$result" ]] && abort "error with '$path'"
+  change_result "$path"
+
+  echo "$result" > "$temp/path.txt"
+
+  # export the datas of $compare
+  result=`identify -verbose "$compare" 2>&1`
+  [[ -z "$result" ]] && abort "error with '$compare'"
+  change_result "$compare"
+
+  echo "$result" > "$temp/compare.txt"
+
+  # export the wdiff comparison
+  wdiff -n "$temp/path.txt" "$temp/compare.txt" > "$temp/wdiff.txt"
+
+  # display the comparison in the console
+  show_wdiff
+
+  rm -rf $temp
+  exit 0
+fi
+
+# export each $files
+echo "$files" | while read l; do
+
+  result=`identify -verbose "$l" 2>&1`
+  [[ -z "$result" ]] && continue
+
+  change_result "$l"
+
+  base="`basename "$l"`"
+  if [[ -n "$directory" ]]; then
+    dest="$directory/$base.txt"
+  elif [[ -n "$file" ]]; then
+    dest="$file"
+  else
+    dir=`dirname "$l"`
+    dest="$dir/$base.txt"
+  fi
+
+  dir=`dirname "$dest"`
+  [[ "$dir" != '.' ]] && mkdir -p "$dir"
+
+  echo "$result" > "$dest"
+done
