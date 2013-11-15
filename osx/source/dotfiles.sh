@@ -12,6 +12,8 @@ dot() {
         echo -e "remove $STDOUT_HIGHLIGHT$name$COL_RES homebrew formula"
       done
 
+      # remove cache
+      rm -rf $(brew --cache)
       # brew prune: remove dead symblink
       brew prune 1>/dev/null
       path=$(brew --prefix)
@@ -28,6 +30,7 @@ dot() {
         rm -rf $path/.gitignore
         rm -rf $path/*.md
         rm -rf $path/etc/openssl
+        rm -rf $path/etc/colordiffrc
         rm -rf $path/lib/python2.7/site-packages
         if [[ -n `type -P crap` ]]; then
           crap -c $path | while read l; do rm -rf "$l"; done
@@ -59,6 +62,7 @@ cfhdojbkjhnklbpkdaibdccddilifddb Adblock Plus
 nipdlgebaanapcphbcidpmmmkcecpkhg PrettyPrint
 bcjindcccaagfpapjjmafapmmgkkhgoa JSON Formatter
 jnihajbhpnppcggbcgedagnkighmdlei LiveReload
+mlomiejdfkolichcflejclcbmpeaniij Ghostery
 EOF)
     fi
 
@@ -88,6 +92,7 @@ EOF
         done < <(cat <<EOF
 {d10d0bf8-f5b5-c8b4-a8b2-2b9879e08c5d}.xpi Adblock Plus
 firebug@software.joehewitt.com.xpi Firebug
+firefox@ghostery.com.xpi Ghostery
 netexport@getfirebug.com.xpi Net Export
 {DDC359D1-844A-42a7-9AA1-88A850A938A8}.xpi DownThemAll
 livereload@livereload.com.xpi LiveReload

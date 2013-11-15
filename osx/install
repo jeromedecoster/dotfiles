@@ -678,6 +678,37 @@ check_formula() {
 }
 
 #
+# Check if the personal formula $1 was installed with homebrew. If yes, just upgrade it
+# If no, install $1 with homebrew
+# Personal formulas are hosted in ~/.dotfiles/osx/formula/
+#
+check_dotfiles_formula() {
+  echo -n "check `blue "homebrew dotfiles-$1"`..."
+  # $1 not found, install it
+  if [[ -z `brew ls -1 | grep "^dotfiles-$1"` ]]; then
+    notok
+    message_delay "install `blue dotfiles-$1` with homebrew"
+    # warning: brew is a workaround function defined above
+    # unsintall previous regular formulas
+    brew uninstall --force "$1"
+    brew install "~/.dotfiles/osx/formula/dotfiles-$1.rb"
+  # $1 found, upgrade it
+  else
+    local cur=`brew info "~/.dotfiles/osx/formula/dotfiles-$1.rb" | head -n 1 | sed 's/^.*[ ]//'`
+    local ins=`brew ls --versions | grep "^dotfiles-$1" | sed 's/^.*[ ]//'`
+    if [[ "$cur" != "$ins" ]]; then
+      notok
+      echo "upgrade `blue "homebrew dotfiles-$1"`"
+      # unink previous version is required
+      brew unlink "dotfiles-$1" &>/dev/null
+      brew install "~/.dotfiles/osx/formula/dotfiles-$1.rb"
+    else
+      ok
+    fi
+  fi
+}
+
+#
 # Check if rvm is installed. If yes, prompt the user to uninstall it
 # If the user chose to keep rvm, this script is aborted
 #
@@ -1455,7 +1486,6 @@ check_formula ruby-build
 check_formula openssl
 check_ruby
 
-check_formula phantomjs
 check_formula tree
 check_formula man2html
 check_formula coreutils
@@ -1463,6 +1493,8 @@ check_formula wdiff
 
 check_dotfiles
 user_files
+
+check_dotfiles_formula phantomjs
 
 chrome_extensions
 firefox_extensions
