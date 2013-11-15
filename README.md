@@ -48,6 +48,7 @@ bash -c "$(curl -fsSL raw.github.com/jeromedecoster/dotfiles/master/osx/install)
   * <a href="https://github.com/mxcl/homebrew/blob/master/Library/Formula/coreutils.rb" target="_blank">coreutils</a>
   * <a href="https://github.com/mxcl/homebrew/blob/master/Library/Formula/wdiff.rb" target="_blank">wdiff</a>
   * <a href="https://github.com/mxcl/homebrew/blob/master/Library/Formula/optipng.rb" target="_blank">optipng</a>
+  * <a href="https://github.com/mxcl/homebrew/blob/master/Library/Formula/pngcrush.rb" target="_blank">pngcrush</a>
   * <a href="https://github.com/mxcl/homebrew/blob/master/Library/Formula/jpeg-turbo.rb" target="_blank">jpeg-turbo</a>
 * Install the latest versions of <a href="https://www.ruby-lang.org" target="_blank">Ruby</a> 1.9.3 and 2.0.0 with rbenv in `~/.rbenv/versions`
 * Prompt you to install some Chrome extensions, skipped after 3 refusals
@@ -55,11 +56,13 @@ bash -c "$(curl -fsSL raw.github.com/jeromedecoster/dotfiles/master/osx/install)
   * <a href="https://chrome.google.com/webstore/detail/prettyprint/nipdlgebaanapcphbcidpmmmkcecpkhg" target="_blank">PrettyPrint</a>
   * <a href="https://chrome.google.com/webstore/detail/json-formatter/bcjindcccaagfpapjjmafapmmgkkhgoa" target="_blank">JSON Formatter</a>
   * <a href="https://chrome.google.com/webstore/detail/livereload/jnihajbhpnppcggbcgedagnkighmdlei" target="_blank">LiveReload</a>
+  * <a href="https://chrome.google.com/webstore/detail/ghostery/mlomiejdfkolichcflejclcbmpeaniij" target="_blank">Ghostery</a>
 * Prompt you to install some Firefox extensions, skipped after 3 refusals
-  * <a href="https://addons.mozilla.org/en-US/firefox/addon/adblock-plus" target="_blank">Adblock Plus</a>
-  * <a href="https://addons.mozilla.org/en-US/firefox/addon/firebug" target="_blank">Firebug</a>
+  * <a href="https://addons.mozilla.org/en-US/firefox/addon/adblock-plus/" target="_blank">Adblock Plus</a>
+  * <a href="https://addons.mozilla.org/en-US/firefox/addon/firebu/g" target="_blank">Firebug</a>
+  * <a href="https://addons.mozilla.org/fr/firefox/addon/ghostery/" target="_blank">Ghostery</a>
   * <a href="https://getfirebug.com/releases/netexport" target="_blank">Net Export</a>
-  * <a href="https://addons.mozilla.org/en-US/firefox/addon/downthemall" target="_blank">DownThemAll</a>
+  * <a href="https://addons.mozilla.org/en-US/firefox/addon/downthemall/" target="_blank">DownThemAll</a>
   * <a href="http://help.livereload.com/kb/general-use/browser-extensions" target="_blank">LiveReload</a>
 * Install or update this git repository in `~/.dotfiles`
 * Copy some dotfiles in your `~`. The previously existing files are backuped in `~/.dotfiles/.backup`

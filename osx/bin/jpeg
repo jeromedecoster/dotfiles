@@ -227,7 +227,7 @@ if [[ "$analysis" -eq 1 ]]; then
     fi
 
     if [[ "$fmt" != 'JPEG' ]]; then
-      convert "$l" -quality 100 "$temp/from.jpg"
+      convert "$l[0]" -quality 100 "$temp/from.jpg"
     else
       cp "$l" "$temp/from.jpg"
     fi
@@ -236,7 +236,6 @@ if [[ "$analysis" -eq 1 ]]; then
     # collect rdjpgcom datas
     result=`rdjpgcom -verbose "$from" 2>&1`
 
-    # temp=`mktemp -d /tmp/jpeg.XXXXX`
     create "$from" 1 $progressive
     create "$from" 2 $progressive
     create "$from" 3 $progressive
@@ -357,15 +356,23 @@ echo "$files" | while read l; do
     dest="$directory/$filename.jpg"
   elif [[ -n "$file" ]]; then
     dest="$file"
-  # without $file or $directory, the file is generated with a timestamp
-  # from path/to/file.jpg to path/to/file-165600437.jpg
+  # without $file or $directory
   else
     dir=`dirname "$l"`
     filename="${base%.*}"
-
-    timestamp=`gdate +%H%M%S%N | cut -c 1-9`
-    dest="$dir/$filename-$timestamp.jpg"
+    # if $dir/$filename.jpg already exists, the file is generated with a timestamp
+    # from path/to/file.jpg to path/to/file-165600437.jpg
+    if [[ -f "$dir/$filename.jpg" ]]; then
+      timestamp=`gdate +%H%M%S%N | cut -c 1-9`
+      dest="$dir/$filename-$timestamp.jpg"
+    # no timestamp needed
+    else
+      dest="$dir/$filename.jpg"
+    fi
   fi
+
+  # remove starting './'
+  [[ "${dest:0:2}" == './' ]] && dest="${dest:2}"
 
   dir=`dirname "$dest"`
   [[ "$dir" != '.' ]] && mkdir -p "$dir"
