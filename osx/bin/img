@@ -2,7 +2,7 @@
 
 # DESCRIPTION
 # ===========
-# export interesting datas about an image
+# display and export interesting datas about an image
 #
 # with option -c you can compare the datas of two files
 
@@ -19,6 +19,7 @@ usage() {
     echo '       img [options] [directory]'
     echo 'option: -c [file] compare with this file'
     echo '        -d output directory'
+    echo '        -n disable automatic output'
     echo '        -o output file'
     echo '        -r recursive'
     echo '        -w raw'
@@ -31,6 +32,7 @@ abort() {
   exit 1
 }
 
+automatic=
 compare=
 directory=
 file=
@@ -54,6 +56,7 @@ while [[ $# -ne 0 ]]; do
       ;;
     -g) histogram=1 ;;
     -h) usage       ;;
+    -n) automatic=1 ;;
     -o) shift
         [[ -n "$file" ]]      && abort 'option -o can be used only once'
         [[ -d "$1" ]]         && abort 'option -o can not target a directory'
@@ -191,6 +194,10 @@ change_result() {
   rem_properties
 
   [[ -z "$histogram" ]] && rem_part '^Histogram:'
+  # TODO: inject histogram is -n "$histogram" and '^Histogram:' not here
+  # obtain histogram with:
+  # convert <filename> -format %c histogram:info:-
+  # remove the 2 firt blank chars for each histogram line
 
   rem_part '^Colormap:'
 
@@ -368,6 +375,8 @@ if [[ -n "$compare" ]]; then
   exit 0
 fi
 
+cnt=`echo "$files" | wc -l`
+cur=0
 # export each $files
 echo "$files" | while read l; do
 
@@ -382,6 +391,7 @@ echo "$files" | while read l; do
   elif [[ -n "$file" ]]; then
     dest="$file"
   else
+    auto=1
     dir=`dirname "$l"`
     dest="$dir/$base.txt"
   fi
@@ -389,5 +399,13 @@ echo "$files" | while read l; do
   dir=`dirname "$dest"`
   [[ "$dir" != '.' ]] && mkdir -p "$dir"
 
-  echo "$result" > "$dest"
+  if [[ -z "$auto" ]]; then
+    echo "$result" > "$dest"
+  else
+    [[ -z "$automatic" ]] && echo "$result" > "$dest"
+  fi
+
+  echo "$result"
+  cur=$((cur + 1))
+  [[ $cnt -gt 1 && $cnt -ne $cur ]] && echo ---
 done

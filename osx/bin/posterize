@@ -1,0 +1,510 @@
+#!/bin/bash
+
+# DESCRIPTION
+# ===========
+# reduce the colors of an image
+#
+# this command exports a new image, corresponding to a predefined usage profile
+# you choose between 4 profiles with the following arguments:
+# -4 : target a desktop high quality image
+# -3 : target a desktop regular quality image
+# -2 : target a mobile regular quality image
+# -1 : target a mobile low quality image
+#
+# note1 : exported image are done in 100% quality and must be optimized
+#
+# note2 : posterized image performs good filesize reduction for PNG but strangely does nothing for JPEG
+
+# DEPENDENCIES
+# ============
+# convert  - is installed with imagemagick
+# gstat    - is installed with the coreutils homebrew formula
+# gdate    - is installed with the coreutils homebrew formula
+# identify - is installed with imagemagick
+# linear   - is my ~/.dotfiles/osx/bin/linear executable
+# map      - is my ~/.dotfiles/osx/bin/map executable
+
+
+# write the usage message in the stderr and exit 1
+usage() {
+  { echo 'usage: posterize [options] file'
+    echo 'option: -a analysis'
+    echo '        -c colors[,colors]'
+    echo '        -d output directory'
+    echo '        -l level'
+    echo '        -o output file'
+    echo '        -q quiet'
+    echo '        -w raw'
+    echo '        -4 desktop high'
+    echo '        -3 desktop'
+    echo '        -2 mobile'
+    echo '        -1 mobile low'
+    exit 1
+  } >&2
+}
+
+abort() {
+  echo "posterize: $1" >&2
+  exit 1
+}
+
+analysis=
+colors=
+directory=
+file=
+level=
+path=
+quality=
+quiet=
+raw=
+
+[[ $# -eq 0 ]] && usage
+
+while [[ $# -ne 0 ]]; do
+  case $1 in
+    -a) analysis=1 ;;
+    -c) shift
+        [[ -n "$colors" ]] && abort 'option -c can be used only once'
+        [[ -n "$level" ]]  && abort 'options -c and -l can not be used together'
+        colors=`echo $1 | sed 's/[ \t]//g'`
+        [[ -n `echo $colors | sed 's/[0-9,]//g'` ]] && abort 'option -c only accepts numbers'
+      ;;
+    -d) shift
+        [[ -n "$directory" ]] && abort 'option -d can be used only once'
+        [[ -f "$1" ]]         && abort 'option -d can not target a file'
+        [[ -n "$file" ]]      && abort 'options -d and -o can not be used together'
+        directory="$1"
+      ;;
+    -h) usage ;;
+    -l) shift
+        [[ -n "$level" ]]  && abort 'option -l can be used only once'
+        [[ -n "$colors" ]] && abort 'options -c and -l can not be used together'
+        [[ $1 -lt 5 ]]     && abort 'the minimum value for the option -l is 5'
+        [[ $1 -gt 140 ]]   && abort 'the maximum value for the option -l is 140'
+        level=$1
+        [[ -n `echo $level | sed 's/[0-9]//g'` ]] && abort 'option -l only accepts numbers'
+      ;;
+    -o) shift
+        [[ -n "$file" ]]      && abort 'option -o can be used only once'
+        [[ -d "$1" ]]         && abort 'option -o can not target a directory'
+        [[ -n "$directory" ]] && abort 'options -d and -o can not be used together'
+        file="$1"
+      ;;
+    -q) quiet=1 ;;
+    -w) raw=1   ;;
+    -1|-2|-3|-4) quality=${1:1} ;;
+     *) [[ ! -f "$1" ]]  && usage
+        [[ -n "$path" ]] && abort 'the target file must be defined only once'
+        path="$1"
+      ;;
+  esac
+  shift
+done
+
+[[ -z "$path" ]] && abort 'a target file must be defined'
+
+[[ -z "$analysis" && -z "$colors" && -z "$level" && -z "$quality" ]] && usage
+
+# divide the colors $count by $1, echo the result as an integer
+# global $count must be defined
+divide() {
+  local col=`awk -v n=$count -v d=$1 'BEGIN { printf("%.0f", n / d) }'`
+  [[ $col -lt 1 ]] && col=1
+  echo -n $col
+}
+
+# generate the posterized image and populate the $temp/datas file
+generate() {
+  local col dis sor
+  for e in "${@}"; do
+    if [[ ! -f "$temp/$e.tga" ]]; then
+      convert "$path" +dither -posterize $e "$temp/$e.tga"
+      col=`identify -format %k "$temp/$e.tga"`
+      if [[ -n "$color" ]]; then
+        dis=`dist $color $col`
+      else
+        dis=-
+      fi
+      # row 1 : colors count
+      # row 2 : level
+      # row 3 : distance from $col to $color
+      echo "$col $e $dis" >> "$temp/datas"
+    fi
+  done
+  sor=`sort -n "$temp/datas"`
+  echo "$sor" > "$temp/datas"
+}
+
+# parse the $temp/datas file to return the generated colors count for the level $1
+# generate the file if it was not yet done
+generated_count() {
+  [[ ! -f "$temp/$1.tga" ]] && generate $1
+  sed -n "/ $1 /p" "$temp/datas" | cut -d ' ' -f 1
+}
+
+# usage: get_linear 1 2
+# usage: get_linear 1 2 1 3
+#
+# note: the $temp/datas contains lines of datas numbers "<colors obtained> <generated level> <distance to $color>"
+#
+# get_linear compute linear interpolation on "<colors obtained> <generated level>" of 2 lines to quickly estimate
+# the level for $color
+# the arguments are the number of each line that must be computed
+# if more than 2 lines are given, the result will be the average of results
+#
+# temporary sort the $temp/datas file from the third column, which is the distance from desired $color to
+# the obtained colors. So, each lines in $temp/datas are now ordered from shortest to longest distance to
+# the desired $color
+# Then pick the arguments two by two, and compute linear this line numbers
+# must be defined : $temp, $color
+get_linear() {
+  local sor=`sort -n -k3 "$temp/datas"`
+  local line1 line2 lin res
+  while [[ $# -ne 0 ]]; do
+    if [[ -n "$1" && -n "$2" ]]; then
+      line1=$(echo "$sor" | sed -n "$1p" | cut -d' ' -f 1 -f 2)
+      line2=$(echo "$sor" | sed -n "$2p" | cut -d' ' -f 1 -f 2)
+      lin=`linear $color $line1 $line2`
+      res="$res $lin"
+    fi
+    shift
+    shift
+  done
+  # compute the summary of $res
+  # antibug: the + 0 force the variable to be checked as a number
+  # before that with a = '18', the if (a < 5) was executed
+  echo "$res" \
+    | sed 's/^[ ]*//' \
+    | awk ' BEGIN{ RS=" " }
+            { a += $1 }
+            END{
+              a = sprintf("%.0f", a/NR) + 0
+              if (a < 5) { a = 5 }
+              else if (a > 140) { a = 140 }
+              print a
+            }'
+}
+
+
+# compute the distance between two integers, from $1 to $2
+dist() {
+  local val=`echo "$1 - $2" | bc`
+  [[ $val -lt 0 ]] && val=${val:1}
+  echo -n $val
+}
+
+# parse the $colors variable and find the posterization levels approaching each targeted color count
+# return all levels in one line, with comma separation
+# must be defined : $count $colors $temp
+get_levels() {
+
+  # local count=`identify -format %k "$path" 2>&1`
+  # echo "count:$count:"
+  local max min mid lin lev clo
+
+  # define $color, will be used in the get_linear function
+  while read color; do
+    [[ $color -ge $count ]] && lev="${lev},140" && continue
+
+    if [[ ! -f "$temp/datas" ]]; then
+      # generate the level 140 and define $max, the count of generated colors
+      max=`generated_count 140`
+      [[ $color -ge $max ]] && lev="${lev},140" && continue
+
+      # generate the level 5 and define $min, the count of generated colors
+      min=`generated_count 5`
+      [[ $color -le $min ]] && lev="${lev},5"   && continue
+
+      # all levels can be found between 5 and 140
+      # below 5, the colors count is usually awful. Above 140 imagemagick usually fails to compute/render the image
+      # with the current $min $max colors rendered, try to estimate the level position for $color
+      # the $mid is limited to the range 28 .. 118 to generate 5 posterized image between 6 .. 139, depending
+      # the $mid value
+      mid=`map $color $min $max 28 118`
+      generate $(($mid - 22)) $(($mid - 11)) $mid $(($mid + 10)) $(($mid + 21))
+
+    # $temp/datas exists, images was already generated
+    else
+
+      # update distances in datas
+      cat "$temp/datas" | while read col lev dis; do
+        # row 1 : colors count
+        # row 2 : level
+        # row 3 : distance from $col to $color
+        echo "$col $lev `dist $color $col`" >> "$temp/temp"
+      done
+
+      rm "$temp/datas"
+      mv "$temp/temp" "$temp/datas"
+    fi
+
+    # estimate the next level with the summary of the 3 more approaching levels
+    lin=`get_linear 1 2 1 3`
+    generate $lin
+
+    # now estimate the next level with the 2 more approaching levels
+    lin=`get_linear 1 2`
+    generate $lin
+
+    clo=`sort -n -k3 "$temp/datas" | head -n 1 | cut -d ' ' -f 2`
+    lev="$lev,$clo"
+
+  # split inlined $colors joined with comma, to a multiline file and inject it to the while read loop
+  done < <(echo $colors | sed 's/,/\'$'\n/g')
+
+  echo -n "${lev:1}"
+}
+
+# the percentage of evolution from $1 to $2
+# $1 : the reference value
+# $2 : the new value
+percent() {
+  # awk is used to compute float easily
+  awk -v from=$1 -v to=$2 'BEGIN{
+    a = (to - from) / from * 100
+    a = sprintf ("%.1f", a)
+    sub(/,/, ".", a)
+    if (a == "-0.0") { a = "0.0" }
+    print a
+  }'
+}
+
+# without raw mode, color_indice is used to adds color
+color_indice() {
+  # warning: whitout 'echo | awk' you must use BEGIN instead END otherwise it fails
+  # silently in 'echo "$files" | while read l; do' below
+  local sign=`awk "BEGIN { if ($1 > 4) { print \"+\" } else if ($1 < 1) { print \"-\" } }"`
+  if [[ "$sign" == '-' ]]; then
+    echo -e "$STDOUT_WARNING$1$COL_RES"
+  elif [[ "$sign" == '+' ]]; then
+    echo -e "$STDOUT_NOTOK$1$COL_RES"
+  else
+    echo -e "$STDOUT_OK$1$COL_RES"
+  fi
+}
+
+# without raw mode, color_percent is used to adds signs, % char and color
+color_percent() {
+  if [[ ${1:0:1} == '-' ]]; then
+    echo -e "$STDOUT_OK$1%$COL_RES"
+  elif [[ $1 == '0.0' ]]; then
+    echo -e "$STDOUT_HIGHLIGHT$1%$COL_RES"
+  else
+    echo -e "$STDOUT_NOTOK+$1%$COL_RES"
+  fi
+}
+
+# find levels for quality 1 to 4
+# correct levels in special cases
+# must be defined : $count
+get_analyzed_levels() {
+  local colors="`divide 5.5`,`divide 4.416`,`divide 3.333`,`divide 2.25`"
+  local levels=`get_levels`
+
+  # $levels are inlined values, separated with commas
+  # $lines contains this values, separated with newlines
+  local lines=`echo $levels | sed 's/,/\'$'\n/g'`
+
+  # try to identify image with low color results. Means reference image with few starting colors
+  # in this case, generated levels are corrects but the quality of image (colors divided from 2.25 to 5.5)
+  # are not good. So overwrite $levels with simple predefined values
+  if [[ `generated_count 5` -le 64 && `generated_count 15` -le 128 ]]; then
+    color=$count
+    generate 70 93 117
+    levels=70,93,117,140
+  # if $lines contains a redundant level, overwrite $levels with an linear interpolation
+  # from first level to last level
+  elif [[ `echo "$lines" | uniq | wc -l` -lt 4 ]]; then
+    lev1=`echo "$lines" | head -n 1`
+    lev4=`echo "$lines" | tail -n 1`
+
+    levels=`awk -v a=$lev1 -v b=$lev4 'BEGIN{
+        step = (b - a) / 3
+        lev2 = sprintf("%.0f", a + step)
+        lev3 = sprintf("%.0f", a + step + step)
+        print a","lev2","lev3","b
+      }'`
+
+    lev2=`echo $levels | cut -d ',' -f 2`
+    lev3=`echo $levels | cut -d ',' -f 3`
+
+    generate $lev2 $lev3
+  fi
+
+  echo -n "$levels"
+}
+
+# export one image with the predefined variable $level
+# must be defined : $level
+# can use defined : $directory $file
+export_level() {
+  local base="`basename "$path"`"
+
+  local dest dir
+  if [[ -n "$directory" ]]; then
+    dest="$directory/$base"
+  elif [[ -n "$file" ]]; then
+    dest="$file"
+  else
+    dir=`dirname "$path"`
+    local filename="${base%.*}"
+    local extension="${base##*.}"
+    local timestamp=`gdate +%H%M%S%N | cut -c 1-9`
+    dest="$dir/$filename-$timestamp.$extension"
+  fi
+
+  dir=`dirname "$dest"`
+  [[ "$dir" != '.' ]] && mkdir -p "$dir"
+
+  [[ ! -f "$temp/$level.tga" ]] && convert "$path" +dither -posterize $level "$temp/$level.tga"
+  convert "$temp/$level.tga" -quality 100 "$dest"
+
+  # not in quiet mode, displays informations about compression
+  if [[ -z "$quiet" ]]; then
+    # convert in PNG 32 to perform the computation
+    convert "$path" PNG32:"$temp/ref.png"
+    convert "$temp/$level.tga" PNG32:"$temp/posterized.png"
+
+    # computes the compression gain
+    perc=`percent $(gstat -c%s "$temp/ref.png") $(gstat -c%s "$temp/posterized.png")`
+
+    # without raw mode, the percentage is colored
+    [[ -z "$raw" ]] && perc=`color_percent $perc`
+
+    echo "$perc $dest"
+  fi
+}
+
+# analysis mode, no image will be created
+if [[ "$analysis" -eq 1 ]]; then
+
+  temp=`mktemp -d /tmp/posterize.XXXXX`
+
+  # the reference colors $count
+  count=`identify -format %k "$path" 2>/dev/null`
+  if [[ -z "$count" ]]; then
+    echo "posterize: '$path' is not valid" >&2
+    exit 1
+  fi
+
+  # get levels for quality 1 to 4
+  levels=`get_analyzed_levels`
+
+  # we cannot compute the filesize gains between each levels with targa files
+  # because the results are not realistic. It is strange but, reduced image produce sometimes greater
+  # filesize in targa
+  # we convert it in PNG 32 to perform the computation
+  convert "$path" "$temp/ref.tga"
+
+  lev1=`echo $levels | cut -d ',' -f 1`
+  lev2=`echo $levels | cut -d ',' -f 2`
+  lev3=`echo $levels | cut -d ',' -f 3`
+  lev4=`echo $levels | cut -d ',' -f 4`
+
+  convert "$temp/ref.tga" PNG32:"$temp/ref.png"
+  convert "$temp/$lev1.tga" PNG32:"$temp/$lev1.png"
+  convert "$temp/$lev2.tga" PNG32:"$temp/$lev2.png"
+  convert "$temp/$lev3.tga" PNG32:"$temp/$lev3.png"
+  convert "$temp/$lev4.tga" PNG32:"$temp/$lev4.png"
+
+  ref=`gstat -c%s "$temp/ref.png"`
+  size1=`gstat -c%s "$temp/$lev1.png"`
+  size2=`gstat -c%s "$temp/$lev2.png"`
+  size3=`gstat -c%s "$temp/$lev3.png"`
+  size4=`gstat -c%s "$temp/$lev4.png"`
+
+  # compute and display the filesize indice
+  if [[ $ref -le $size2 ]]; then
+    indice=`map $ref $size1 $size2 1 2 1`
+  elif [[ $ref -le $size3 ]]; then
+    indice=`map $ref $size2 $size3 2 3 1`
+  else
+    indice=`map $ref $size3 $size4 3 4 1`
+  fi
+
+  # if map returns an integer, adds a trailing .0
+  [[ -z `echo $indice | grep '\.'` ]] && indice="$indice.0"
+
+  # displays the indice. Without raw mode, it is colored
+  [[ -z "$raw" ]] && echo -n "`color_indice $indice` " || echo -n "$indice "
+
+  # displays the percentage for the quality 1
+  perc=`percent $ref $size1`
+  [[ -z "$raw" ]] && perc=`color_percent $perc`
+  echo -n "$perc:$lev1 "
+
+  # displays the percentage for the quality 2
+  perc=`percent $ref $size2`
+  [[ -z "$raw" ]] && perc=`color_percent $perc`
+  echo -n "$perc:$lev2 "
+
+  # displays the percentage for the quality 3
+  perc=`percent $ref $size3`
+  [[ -z "$raw" ]] && perc=`color_percent $perc`
+  echo -n "$perc:$lev3 "
+
+  # displays the percentage for the quality 4
+  perc=`percent $ref $size4`
+  [[ -z "$raw" ]] && perc=`color_percent $perc`
+  echo -n "$perc:$lev4"
+
+  # colors count of the reference image
+  echo -n " $count"
+
+  # the filename
+  echo " $path"
+
+  rm -rf $temp
+  exit 0
+fi
+
+if [[ -n "$colors" ]]; then
+
+   # creates the images in a $temp directory
+  temp=`mktemp -d /tmp/posterize.XXXXX`
+
+  # the reference colors $count
+  count=`identify -format %k "$path" 2>/dev/null`
+  if [[ -z "$count" ]]; then
+    echo "posterize: '$path' is not valid" >&2
+    exit 1
+  fi
+
+  # echo the levels found from the variable $colors
+  echo `get_levels`
+
+  rm -rf $temp
+  exit 0
+fi
+
+if [[ -n "$quality" ]]; then
+  # creates the images in a $temp directory
+  temp=`mktemp -d /tmp/posterize.XXXXX`
+
+  # the reference colors $count
+  count=`identify -format %k "$path" 2>/dev/null`
+  if [[ -z "$count" ]]; then
+    echo "posterize: '$path' is not valid" >&2
+    exit 1
+  fi
+
+  # find the 4 quality levels
+  levels=`get_analyzed_levels`
+  # extract the good level
+  level=`echo $levels | cut -d ',' -f $quality`
+  # export the image with $level
+  export_level
+
+  rm -rf $temp
+  exit 0
+fi
+
+if [[ -n "$level" ]]; then
+  # creates the images in a $temp directory
+  temp=`mktemp -d /tmp/posterize.XXXXX`
+
+  # export the image with $level
+  export_level
+
+  rm -rf $temp
+fi

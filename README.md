@@ -42,7 +42,6 @@ bash -c "$(curl -fsSL raw.github.com/jeromedecoster/dotfiles/master/osx/install)
   * <a href="https://github.com/mxcl/homebrew/blob/master/Library/Formula/rbenv.rb" target="_blank">rbenv</a>
   * <a href="https://github.com/mxcl/homebrew/blob/master/Library/Formula/ruby-build.rb" target="_blank">ruby-build</a>
   * <a href="https://github.com/mxcl/homebrew/blob/master/Library/Formula/openssl.rb" target="_blank">openssl</a>
-  * <a href="https://github.com/mxcl/homebrew/blob/master/Library/Formula/phantomjs.rb" target="_blank">phantomjs</a>
   * <a href="https://github.com/mxcl/homebrew/blob/master/Library/Formula/tree.rb" target="_blank">tree</a>
   * <a href="https://github.com/mxcl/homebrew/blob/master/Library/Formula/man2html.rb" target="_blank">man2html</a>
   * <a href="https://github.com/mxcl/homebrew/blob/master/Library/Formula/coreutils.rb" target="_blank">coreutils</a>
@@ -50,6 +49,8 @@ bash -c "$(curl -fsSL raw.github.com/jeromedecoster/dotfiles/master/osx/install)
   * <a href="https://github.com/mxcl/homebrew/blob/master/Library/Formula/optipng.rb" target="_blank">optipng</a>
   * <a href="https://github.com/mxcl/homebrew/blob/master/Library/Formula/pngcrush.rb" target="_blank">pngcrush</a>
   * <a href="https://github.com/mxcl/homebrew/blob/master/Library/Formula/jpeg-turbo.rb" target="_blank">jpeg-turbo</a>
+* Install or update the following personal homebrew formulas
+  * <a href="https://github.com/jeromedecoster/dotfiles/blob/master/osx/formula/dotfiles-phantomjs.rb" target="_blank">phantomjs</a>
 * Install the latest versions of <a href="https://www.ruby-lang.org" target="_blank">Ruby</a> 1.9.3 and 2.0.0 with rbenv in `~/.rbenv/versions`
 * Prompt you to install some Chrome extensions, skipped after 3 refusals
   * <a href="https://chrome.google.com/webstore/detail/empty-title/cfhdojbkjhnklbpkdaibdccddilifddb" target="_blank">Adblock Plus</a>
@@ -121,6 +122,15 @@ crap
 crap ..
 ```
 
+* <a href="https://github.com/jeromedecoster/dotfiles/blob/master/osx/bin/img" target="_blank">img</a> displays and exports interesting datas about an image
+
+```bash
+# list and export datas for all images in the pwd and his sub-directories
+img -r
+# list and export datas for file.png as datas.txt
+img file.png -o datas.txt
+```
+
 * <a href="https://github.com/jeromedecoster/dotfiles/blob/master/osx/bin/jpeg" target="_blank">jpeg</a> allows you to compress and/or optimize jpeg files or other images format
 
 ```bash
@@ -145,6 +155,22 @@ lt -3
 manh grep
 # or using the alias
 mh grep
+```
+
+* <a href="https://github.com/jeromedecoster/dotfiles/blob/master/osx/bin/png" target="_blank">png</a> allows you to compress and/or optimize png files or other images format
+
+```bash
+# optimize file.png and save it to the directory dest
+png file.png -d dest
+# compress file.png with the desktop setting and save it as file-desktop.png
+png -3 file.png -o file-desktop.png
+```
+
+* <a href="https://github.com/jeromedecoster/dotfiles/blob/master/osx/bin/posterize" target="_blank">posterize</a> is useful to reduce the colors of an image
+
+```bash
+# reduce colors of file.png with the mobile setting and save it as file-mobile.png
+posterize -2 file.png -o file-mobile.png
 ```
 
 * <a href="https://github.com/jeromedecoster/dotfiles/blob/master/osx/bin/svnroot" target="_blank">svnroot</a> return the local repository root of a svn repository
