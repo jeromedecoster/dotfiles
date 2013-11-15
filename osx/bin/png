@@ -357,7 +357,7 @@ if [[ "$analysis" -eq 1 ]]; then
 
     if [[ "$fmt" != 'PNG' ]]; then
       echo check alpha
-      img "$l" -o "$temp/img"
+      img "$l" -o "$temp/img" 1>/dev/null
       if [[ -n `grep '^Alpha: False' "$temp/img"` ]]; then
         convert "$l[0]" PNG24:"$temp/from.png"
       else
@@ -368,7 +368,7 @@ if [[ "$analysis" -eq 1 ]]; then
     fi
     from="$temp/from.png"
 
-    img "$from" -o "$temp/img"
+    img "$from" -o "$temp/img" 1>/dev/null
     result=`cat "$temp/img"`
 
     set_stats
@@ -473,7 +473,7 @@ echo "$files" | while read l; do
 
   if [[ "$fmt" != 'PNG' ]]; then
     # echo check alpha
-    img "$l" -o "$temp/img"
+    img "$l" -o "$temp/img" 1>/dev/null
     if [[ -n `grep '^Alpha: False' "$temp/img"` ]]; then
       convert "$l[0]" PNG24:"$temp/from.png"
     else
@@ -484,7 +484,7 @@ echo "$files" | while read l; do
   fi
   from="$temp/from.png"
 
-  img "$from" -o "$temp/img"
+  img "$from" -o "$temp/img" 1>/dev/null
   result=`cat "$temp/img"`
 
   set_stats
