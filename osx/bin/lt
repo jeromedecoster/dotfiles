@@ -94,7 +94,8 @@ tree $level --dirsfirst --noreport -apfN -I $ignore "$path" | while read l; do
   # the tree graph
   graph=`echo "$l" | sed 's/\[.*//'`
   # exclude the graph and the first [
-  tmp=`echo "$l" | sed 's/^.*\[//'`
+  idx=`i=0; while true; do c=${l:i:1}; i=$((i + 1)); [[ $c == "[" ]] && echo $i && break; done`
+  tmp=${l:idx}
   # first char, to search for type 'd' or 'l'
   first=`echo "$tmp" | cut -c 1`
   # fourth char, to search for user executable 'x'
