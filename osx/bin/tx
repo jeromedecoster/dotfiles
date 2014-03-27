@@ -13,17 +13,19 @@
 usage() {
   { echo 'usage: tx [option] [file] [file] ...'
     echo '       tx [option] [path/to/file] ...'
+    echo 'option: -n write a node shebang'
     echo 'option: -r write a ruby shebang'
     exit 1
   } >&2
 }
 
-bang="#!/bin/bash"
+bang='#!/bin/bash'
 if [[ $1 =~ ^- ]]; then
-  # wrong argument, exit with usage
-  [[ $1 != '-r' ]] && usage
-
-  bang="#!/usr/bin/env ruby"
+  case "$1" in
+    '-n') bang='#!/usr/bin/env node' ;;
+    '-r') bang='#!/usr/bin/env ruby' ;;
+       *) usage ;;
+  esac
   shift
 fi
 
