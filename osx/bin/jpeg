@@ -9,10 +9,9 @@
 #
 # this command exports a new compressed jpeg, corresponding to a predefined usage profile
 # you choose between 4 profiles with the following arguments:
-# -4 : target a desktop high quality image
-# -3 : target a desktop regular quality image
-# -2 : target a mobile regular quality image
-# -1 : target a mobile low quality image
+# -3 : target a desktop high quality image
+# -2 : target a desktop regular quality image
+# -1 : target a mobile high quality image
 #
 # this profiles usually do some miracles and you can win 25% to 50% with the jpeg you receive,
 # thinked ready to go in production
@@ -21,29 +20,32 @@
 # the first number is an indice. It correspond to the jpeg quality
 #
 # example 1: if you obtain the indice 1.0, it means the filesize of the reference jpeg correspond to
-# the same filesize of a jpeg created with the option -1, the mobile low quality.
+# the same filesize of a jpeg created with the option -1, the low quality preset.
 # so, if the file was supposed to be used on a desktop site, this indice alerts you that the quality is too poor
 #
 # example 2: if you obtain the indice 7.0, it means the filesize of the reference jpeg is really above
-# the filesize of a jpeg created with the option -4, the desktop high quality, which have the indice 4.0.
+# the filesize of a jpeg created with the option -3, the desktop high quality, which have the indice 3.0.
 # so, if the file was supposed to be used on a regular desktop site, this indice alerts you that the filesize
 # is really too high
 #
-# the 4 following returned datas are the percentage gain for quality -1 to -4
+# the 3 following returned datas are the percentage gain for quality -1 to -3
 #
-# the following returned data indicates if the reference jpeg is progressive or not, with a flag 'g' or '-'
+# the following returned data indicates if the reference jpeg is progressive or not, with a flag 'prog' or '-'
 #
-# the last data indicates if the reference jpeg contains extra profile datas or not, with a flag 'f' or '-'
+# the last data indicates if the reference jpeg contains extra profile datas or not, with a flag 'data' or '-'
 #
 # several other options are available, look the usage message
+# 
+# note: a jpeg with icc will be slightly modified (saturation) because cjpeg/djpeg/jpegtran/imagemagick convert
+# do not preserve the icc profile. graphicsmagick keep it, but it's not the last tool used, so the final image
+# is always corrupted
 
 # DEPENDENCIES
 # ============
-# convert  - is installed with imagemagick
 # cjpeg    - is installed with the jpeg-turbo homebrew formula
+# convert  - is installed with imagemagick
 # djpeg    - is installed with the jpeg-turbo homebrew formula
 # gstat    - is installed with the coreutils homebrew formula
-# gdate    - is installed with the coreutils homebrew formula
 # identify - is installed with imagemagick
 # jpegtran - is installed with the jpeg-turbo homebrew formula
 # map      - is my ~/.dotfiles/osx/bin/map executable
@@ -60,10 +62,9 @@ usage() {
     echo '        -q quiet'
     echo '        -r recursive'
     echo '        -w raw log, no colors'
-    echo '        -4 desktop high'
-    echo '        -3 desktop'
-    echo '        -2 mobile'
-    echo '        -1 mobile low'
+    echo '        -3 high quality'
+    echo '        -2 medium quality'
+    echo '        -1 low quality'
     exit 1
   } >&2
 }
@@ -72,6 +73,13 @@ abort() {
   echo "jpeg: $1" >&2
   exit 1
 }
+
+COL_BLU='\033[0;34m'
+COL_CYA='\033[0;36m'
+COL_GRE='\033[0;32m'
+COL_PIN='\033[0;35m'
+COL_RED='\033[0;31m'
+COL_RES='\033[0m'
 
 analysis=
 directory=
@@ -103,7 +111,8 @@ while [[ $# -ne 0 ]]; do
     -q) quiet=1       ;;
     -r) recursive=1   ;;
     -w) raw=1         ;;
-    -1|-2|-3|-4) quality=${1:1} ;;
+    -1|-2|-3) quality=${1:1} ;;
+    -*) abort 'option unknown' ;;
      *) [[ -n "$path" ]] && abort 'the target file must be defined only once'
         path="$1"
       ;;
@@ -111,29 +120,45 @@ while [[ $# -ne 0 ]]; do
   shift
 done
 
+# abort if no output is defined
+[[ -z "$analysis" && -z "$file" && -z "$directory" ]] && abort 'option -d or -o must be defined'
+
 # if no path is given, works with pwd
 # otherwise remove trailing slash
 [[ -z "$path" ]] && path=. || path=`echo "$path" | sed 's/\/*$//'`
 
+# use jpeg-turbo if possible
+turbo=`brew --prefix`/Cellar/jpeg-turbo
+version=`ls -1 $turbo 2>/dev/null | sort -nr | head -n 1`
+if [[ -n $version ]]; then
+  cjpeg=$turbo/$version/bin/cjpeg
+  djpeg=$turbo/$version/bin/djpeg
+  jpegtran=$turbo/$version/bin/jpegtran
+  rdjpgcom=$turbo/$version/bin/rdjpgcom
+else
+  cjpeg=`which cjpeg`
+  djpeg=`which djpeg`
+  jpegtran=`which jpegtran`
+  rdjpgcom=`which rdjpgcom`
+fi
 
 # creates a jpeg with cjpeg
 # $1 : the path to the reference file
-# $2 : the desired quality (integer from 1 to 4)
+# $2 : the desired quality (integer from 1 to 3)
 # $3 : creates a progressive jpeg if $3 == 1, otherwise a baseline jpeg
 # the jpeg will be created in the $temp directory, defined outside this function
 # the name of the file will be $2.jpg
 create() {
   local q='-quality '
   case $2 in
-    1) q="$q"50 ;;
-    2) q="$q"60 ;;
-    3) q="$q"70 ;;
-    4) q="$q"80 ;;
+    1) q="$q"64 ;;
+    2) q="$q"72 ;;
+    3) q="$q"80 ;;
   esac
   local p=
   [[ $3 -eq 1 ]] && p='-progressive'
   # the jpeg stream must come from djpeg
-  eval "djpeg \"$1\" | cjpeg $q -optimize $p -outfile $temp/$2.jpg"
+  eval "$djpeg \"$1\" | $cjpeg $q -optimize $p -outfile $temp/$2.jpg"
 }
 
 # optimizes the jpeg
@@ -142,20 +167,20 @@ create() {
 optimize() {
   local p=
   [[ $progressive -eq 1 ]] && p='-progressive'
-  eval "jpegtran -copy none -optimize $p -outfile $temp/optimize.jpg \"$1\""
+  eval "$jpegtran -copy none -optimize $p -outfile $temp/optimize.jpg \"$1\""
 }
 
 # without raw mode, color_indice is used to adds color
 color_indice() {
   # warning: whitout 'echo | awk' you must use BEGIN instead END otherwise it fails
   # silently in 'echo "$files" | while read l; do' below
-  local sign=`awk -v a=$1 'BEGIN { if (a > 4) { print "+" } else if (a < 1) { print "-" } }'`
+  local sign=`awk -v a=$1 'BEGIN { if (a > 3) { print "+" } else if (a < 1) { print "-" } }'`
   if [[ "$sign" == '-' ]]; then
-    echo -e "$STDOUT_WARNING$1$COL_RES"
+    echo -e "$COL_PIN$1$COL_RES"
   elif [[ "$sign" == '+' ]]; then
-    echo -e "$STDOUT_NOTOK$1$COL_RES"
+    echo -e "$COL_RED$1$COL_RES"
   else
-    echo -e "$STDOUT_OK$1$COL_RES"
+    echo -e "$COL_GRE$1$COL_RES"
   fi
 }
 
@@ -176,11 +201,11 @@ percent() {
 # without raw mode, color_percent is used to adds signs, % char and color
 color_percent() {
   if [[ ${1:0:1} == '-' ]]; then
-    echo -e "$STDOUT_OK$1%$COL_RES"
+    echo -e "$COL_GRE$1%$COL_RES"
   elif [[ $1 == '0.0' ]]; then
-    echo -e "$STDOUT_HIGHLIGHT$1%$COL_RES"
+    echo -e "$COL_BLU$1%$COL_RES"
   else
-    echo -e "$STDOUT_NOTOK+$1%$COL_RES"
+    echo -e "$COL_RED+$1%$COL_RES"
   fi
 }
 
@@ -217,7 +242,7 @@ if [[ "$analysis" -eq 1 ]]; then
     # creates the jpeg in a $temp directory
     temp=`mktemp -d /tmp/jpeg.XXXXX`
 
-    fmt=`identify -format %m "$l" 2>/dev/null`
+    fmt=`identify -format %m "$l[0]" 2>/dev/null`
     if [[ -z "$fmt" ]]; then
       echo "jpeg: '$l' is not valid" >&2
       # report an error in the log and skip this loop
@@ -228,35 +253,32 @@ if [[ "$analysis" -eq 1 ]]; then
 
     if [[ "$fmt" != 'JPEG' ]]; then
       convert "$l[0]" -quality 100 "$temp/from.jpg"
+      from="$temp/from.jpg"
     else
-      cp "$l" "$temp/from.jpg"
+      from="$l"
     fi
-    from="$temp/from.jpg"
 
     # collect rdjpgcom datas
-    result=`rdjpgcom -verbose "$from" 2>&1`
+    result=`$rdjpgcom -verbose "$from" 2>&1`
 
     create "$from" 1 $progressive
     create "$from" 2 $progressive
     create "$from" 3 $progressive
-    create "$from" 4 $progressive
 
     ref=`gstat -c%s "$l"`
     size1=`gstat -c%s "$temp/1.jpg"`
     size2=`gstat -c%s "$temp/2.jpg"`
     size3=`gstat -c%s "$temp/3.jpg"`
-    size4=`gstat -c%s "$temp/4.jpg"`
 
     # compute and display the filesize indice
-    # if you create an image with option -1, means 50% jpeg quality, the filesize of the generated correspond
+    # if you create an image with option -1, means 64% jpeg quality, the filesize of the generated correspond
     # to the index 1.0
-    # with option -2, means 60% jpeg quality, the index is 2.0
-    # with option -3, means 70% jpeg quality, the index is 3.0
-    # with option -4, means 80% jpeg quality, the index is 4.0
+    # with option -2, means 72% jpeg quality, the index is 2.0
+    # with option -3, means 80% jpeg quality, the index is 3.0
     # check the filesize of the reference file $l and remap it into this indices range
-    # ie: if the computed indice is 4.5, it means reference file is slightly greater than if you create the jpeg
-    # with the option -4
-    # the indice 4.0 correspond to a great quality for desktop
+    # ie: if the computed indice is 3.5, it means reference file is slightly greater than if you create the jpeg
+    # with the option -3
+    # the indice 3.0 correspond to a great quality for desktop
     # so, if the reference file is supposed to be used on mobile, this indice shows you that the current size is
     # really too big
     # also, if the computed indice is -3.5, it means reference file is really lower than if you create the jpeg
@@ -264,10 +286,8 @@ if [[ "$analysis" -eq 1 ]]; then
     # so it's not a good idea to create a new jpeg, the filesize would be increased
     if [[ $ref -le $size2 ]]; then
       indice=`map $ref $size1 $size2 1 2 1`
-    elif [[ $ref -le $size3 ]]; then
-      indice=`map $ref $size2 $size3 2 3 1`
     else
-      indice=`map $ref $size3 $size4 3 4 1`
+      indice=`map $ref $size2 $size3 2 3 1`
     fi
 
     # if map returns an integer, adds a trailing .0
@@ -276,9 +296,9 @@ if [[ "$analysis" -eq 1 ]]; then
     # displays the indice. Without raw mode, it is colored
     [[ -z "$raw" ]] && echo -n "`color_indice $indice` " || echo -n "$indice "
 
-    # compute and display the filesize diff for every exported quality, options -1 to -4
+    # compute and display the filesize diff for every exported quality, options -1 to -3
     # to simplify the readability, the percentage will be slightly faked if the indice match
-    # a perfect 1.0 or 2.0 .. or 4.0
+    # a perfect 1.0 or 2.0 or 3.0
     # before that, we could have indice 1.0 and -0.1%, it's more accurate, but not really readable or useful
     # the goal of this command is not to win 10 bytes, but 10 or 100 ko
 
@@ -295,18 +315,13 @@ if [[ "$analysis" -eq 1 ]]; then
     # displays the percentage for the quality 3
     [[ $indice == '3.0' ]] && perc='0.0' || perc=`percent $ref $size3`
     [[ -z "$raw" ]] && perc=`color_percent $perc`
-    echo -n "$perc "
-
-    # displays the percentage for the quality 4
-    [[ $indice == '4.0' ]] && perc='0.0' || perc=`percent $ref $size4`
-    [[ -z "$raw" ]] && perc=`color_percent $perc`
     echo -n "$perc"
 
     # if the reference file is a progressive jpeg, displays a flag 'g', otherwise displays '-'
-    [[ -n `echo "$result" | tail -n 1 | grep "Progressive"` ]] && echo -n ' g'  || echo -n ' -'
+    [[ -n `echo "$result" | tail -n 1 | grep "Progressive"` ]] && echo -n ' prog'  || echo -n ' -'
 
     # if the reference file contains profile or comments datas, displays a flag 'f', otherwise displays '-'
-    [[ `echo "$result" | wc -l` -gt 2 ]] && echo -n ' f ' || echo -n ' - '
+    [[ `echo "$result" | wc -l` -gt 2 ]] && echo -n ' data ' || echo -n ' - '
 
     # the filename
     echo "$l"
@@ -323,7 +338,7 @@ echo "$files" | while read l; do
   # creates the jpeg in a $temp directory
   temp=`mktemp -d /tmp/jpeg.XXXXX`
 
-  fmt=`identify -format %m "$l" 2>/dev/null`
+  fmt=`identify -format %m "$l[0]" 2>/dev/null`
   if [[ -z "$fmt" ]]; then
     echo "jpeg: '$l' is not valid" >&2
     # report an error in the log and skip this loop
@@ -333,11 +348,11 @@ echo "$files" | while read l; do
   fi
 
   if [[ "$fmt" != 'JPEG' ]]; then
-    convert "$l" -quality 100 "$temp/from.jpg"
+    convert "$l[0]" -quality 100 "$temp/from.jpg"
+    from="$temp/from.jpg"
   else
-    cp "$l" "$temp/from.jpg"
+    from="$l"
   fi
-  from="$temp/from.jpg"
 
   # $quality is setted, create new jpeg
   if [[ -n "$quality" ]]; then
@@ -349,26 +364,13 @@ echo "$files" | while read l; do
     src="$temp/optimize.jpg"
   fi
 
-  base="`basename "$l"`"
-  filename="${base%.*}"
-
+  # the file destination
   if [[ -n "$directory" ]]; then
-    dest="$directory/$filename.jpg"
-  elif [[ -n "$file" ]]; then
-    dest="$file"
-  # without $file or $directory
-  else
-    dir=`dirname "$l"`
+    base="`basename "$l"`"
     filename="${base%.*}"
-    # if $dir/$filename.jpg already exists, the file is generated with a timestamp
-    # from path/to/file.jpg to path/to/file-165600437.jpg
-    if [[ -f "$dir/$filename.jpg" ]]; then
-      timestamp=`gdate +%H%M%S%N | cut -c 1-9`
-      dest="$dir/$filename-$timestamp.jpg"
-    # no timestamp needed
-    else
-      dest="$dir/$filename.jpg"
-    fi
+    dest="$directory/$filename.jpg"
+  else
+    dest="$file"
   fi
 
   # remove starting './'

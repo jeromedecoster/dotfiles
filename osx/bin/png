@@ -14,34 +14,32 @@
 # this command can do this, but this main goal is to adopt the best strategy for each png to:
 # - keep the best quality possible
 # - reduce more than the other optimizers
-# - choose a jpeg compression if this is more appropriate
 #
 # this command exports a new compressed png, corresponding to a predefined usage profile
 # you choose between 4 profiles with the following arguments:
-# -4 : target a desktop high quality image
-# -3 : target a desktop regular quality image
-# -2 : target a mobile regular quality image
-# -1 : target a mobile low quality image
+# -3 : target a desktop high quality image
+# -2 : target a desktop regular quality image
+# -1 : target a mobile high quality image
 #
 # the option -a does not exports a png but analyses the reference png and returns some datas:
 # the first number is an indice. It correspond to the png quality
 #
 # example 1: if you obtain the indice 1.0, it means the filesize of the reference png correspond to
-# the same filesize of a png created with the option -1, the mobile low quality.
+# the same filesize of a png created with the option -1, the low quality preset.
 # so, if the file was supposed to be used on a desktop site, this indice alerts you that the quality is too poor
 #
 # example 2: if you obtain the indice 7.0, it means the filesize of the reference png is really above
-# the filesize of a png created with the option -4, the desktop high quality, which have the indice 4.0.
+# the filesize of a png created with the option -3, the desktop high quality, which have the indice 3.0.
 # so, if the file was supposed to be used on a regular desktop site, this indice alerts you that the filesize
 # is really too high
 #
-# the 4 following returned datas are the percentage gain for quality -1 to -4
+# the 3 following returned datas are the percentage gain for quality -1 to -3
 #
-# the following returned data indicates if the reference png as alpha or not, with a flag 'a' or '-'
+# the following returned data indicates if the reference png as alpha or not, with a flag 'alpha' or '-'
 #
-# the following returned data indicates if the reference png is interlaced or not, with a flag 'i' or '-'
+# the following returned data indicates if the reference png is interlaced or not, with a flag 'inter' or '-'
 #
-# the last data indicates if the reference png contains extra profile datas or not, with a flag 'e' or '-'
+# the last data indicates if the reference png contains extra profile datas or not, with a flag 'data' or '-'
 #
 # several other options are available, look the usage message
 
@@ -49,12 +47,9 @@
 # ============
 # convert   - is installed with imagemagick
 # gstat     - is installed with the coreutils homebrew formula
-# gdate     - is installed with the coreutils homebrew formula
 # identify  - is installed with imagemagick
-# img       - is my ~/.dotfiles/osx/bin/img executable
 # map       - is my ~/.dotfiles/osx/bin/map executable
 # optipng   - is installed with the optipng homebrew formula
-# posterize - is my ~/.dotfiles/osx/bin/posterize executable
 # pngcrush  - is installed with the pngcrush homebrew formula
 # pngquant  - is the ~/.dotfiles/osx/bin/pngquant executable
 
@@ -69,10 +64,10 @@ usage() {
     echo '        -o output file'
     echo '        -q quiet'
     echo '        -r recursive'
-    echo '        -4 desktop high'
-    echo '        -3 desktop'
-    echo '        -2 mobile'
-    echo '        -1 mobile low'
+    echo '        -w raw log, no colors'
+    echo '        -3 high quality'
+    echo '        -2 medium quality'
+    echo '        -1 low quality'
     exit 1
   } >&2
 }
@@ -82,12 +77,18 @@ abort() {
   exit 1
 }
 
+COL_BLU='\033[0;34m'
+COL_CYA='\033[0;36m'
+COL_GRE='\033[0;32m'
+COL_PIN='\033[0;35m'
+COL_RED='\033[0;31m'
+COL_RES='\033[0m'
+
 analysis=
 directory=
 interlaced=
 file=
 path=
-progressive=1
 quality=
 quiet=
 raw=
@@ -113,7 +114,8 @@ while [[ $# -ne 0 ]]; do
     -q) quiet=1     ;;
     -r) recursive=1 ;;
     -w) raw=1       ;;
-    -1|-2|-3|-4) quality=${1:1} ;;
+    -1|-2|-3) quality=${1:1} ;;
+    -*) abort 'option unknown' ;;
      *) [[ ! -f "$1" ]]  && usage
         [[ -n "$path" ]] && abort 'the target file must be defined only once'
         path="$1"
@@ -122,107 +124,101 @@ while [[ $# -ne 0 ]]; do
   shift
 done
 
+# abort if no output is defined
+[[ -z "$analysis" && -z "$file" && -z "$directory" ]] && abort 'option -d or -o must be defined'
+
 # if no path is given, works with pwd
 # otherwise remove trailing slash
 [[ -z "$path" ]] && path=. || path=`echo "$path" | sed 's/\/*$//'`
 
-
-# parse $result and create $stats
+# parse identify and create vars: $alpha, $from, $colors and $stats
 # $stats contains the inlined following datas:
 # - palette type: 8 or 24
 # - colors count
-# - alpha detected: a or -
-# - interlaced detected: i or -
-# - extra datas detected: e or -
-set_stats() {
-  stats=
-  [[ -z `echo "$result" | grep "Format: PNG"` ]] && return
+# - alpha detected: alpha or -
+# - interlaced detected: inter or -
+# - extra datas detected: data or -
+prepare() {
+  local ident=`identify -verbose "$1[0]"`
 
-  local typ=`echo "$result" | grep 'Type:'`
-  local pal=24
-  [[ -n `echo "$typ" | grep "Type: Palette"` ]] && pal=8
-  local col=`echo "$result" | grep 'Colors:' | sed -E 's/[^0-9]//g'`
-  local alp=-
-  if [[ -n `echo "$typ" | grep 'Alpha'` ]]; then
-    local tmp=`echo "$result" | head -n 1 | sed 's/Image: //'`
-    [[ -n `convert "$tmp" -format %c histogram:info:- | grep -v ",255) #"` ]] && alp=a
+  alpha=
+  [[ -n `echo "$ident" | grep -E '^[ ]+Alpha:$'` ]] && alpha=1
+  
+  if [[ "$format" != 'PNG' ]]; then
+    local typ=PNG24
+    [[ -n "$alpha" ]] && typ=PNG32
+    # convert to PNG
+    convert "$1[0]" $typ:"$temp/from.png"
+    from="$temp/from.png"
+  else
+    from="$1"
   fi
+  
+  colors=`identify -format %k "$1[0]"`
+  
+  local typ=`echo "$ident" | grep -E '^[ ]+Type:'`
+  local pal=24
+  [[ -n `echo "$typ" | grep 'Palette$'` ]] && pal=8
+  local alp=-
+  [[ -n "$alpha" ]] && alp=alpha
   local int=-
-  [[ -n `echo "$result" | grep 'Interlace: PNG'` ]] && int=i
-  local ext=-
-  [[ -n `echo "$result" | grep 'png:text:'` || -n `echo "$result" | grep 'png:text:'` ]] && ext=e
-  stats="$pal $col $alp $int $ext"
-}
-
-# checks if the png will has better compression if exported as jpeg
-# the ratio 0.55 is based on personnal tests
-# return 1 if jpeg format is a better choice
-# otherwise return nothing
-check_jpeg() {
-  local col100=`identify -format %k "$temp/quant100.png"`
-  local col90=`identify -format %k "$temp/quant90.png"`
-  local col80=`identify -format %k "$temp/quant80.png"`
-  local ratio=`map $col90 $col80 $col100 0 1 2`
-  awk -v r=$ratio 'BEGIN { if (r >= 0.55) { print 1 } }'
+  [[ -n `echo "$ident" | grep -E '^[ ]+Interlace: PNG$'` ]] && int=inter
+  local dat=-
+  [[ -n `echo "$ident" | grep -E '^[ ]+png:text:'` ]] && dat=data
+  stats="$pal $colors $alp $int $dat"
 }
 
 # checks if the png has few colors
 check_few_colors() {
-  local col90=`identify -format %k "$temp/quant90.png"`
-  awk "BEGIN { if ($col90 <= 32) { print 1 } }"
+  few=
+  quantize "$from" 3 
+  local col=`identify -format %k "$temp/quantize.png"`
+  [[ $col -le 32 ]] && few=1
 }
 
-# create the png with pngquant then optimize it with optipng
+# create the png with pngquant
 # $1 : the original file
-# $2 : the desired $quality
+# $2 : the desired quality (1, 2 or 3)
 # $3 : optional argument, if 'few' image created will be optimized for image with few colors
-create() {
+quantize() {
   # if a png with few colors is previously detected, the third argument must be 'few'
   # it will result better quality with a fixed color count factor instead of a quality based factor
   if [[ "$3" = 'few' ]]; then
-    local colors=`echo "$stats" | cut -d ' ' -f 2`
-    [[ $colors -gt 256 ]] && colors=256
-    local step=`echo "($colors - 32) / 4" | bc`
-    local col
+    local col=$colors
+    [[ $col -gt 256 ]] && col=256
+    local step=`echo "($col - 32) / 4" | bc`
     case $2 in
-      1) col=`echo "$colors - $step * 4" | bc` ;;
-      2) col=`echo "$colors - $step * 3" | bc` ;;
-      3) col=`echo "$colors - $step * 2" | bc` ;;
-      4) col=`echo "$colors - $step" | bc` ;;
+      3) col=`echo "$col - $step" | bc` ;;
+      2) col=`echo "$col - $step * 2" | bc` ;;
+      1) col=`echo "$col - $step * 3" | bc` ;;
     esac
-    # exports only if the file does not already exists
-    if [[ ! -f "$temp/quant${2}.png" ]]; then
-      pngquant "$col" --speed 1 "$l" -o "$temp/quant${2}.png"
-    fi
-  # not in low mode, compress with --quality option to have better result
+    pngquant "$col" --speed 1 "$1" --force -o "$temp/quantize.png"
   else
     local qua
     case $2 in
-      1) qua=40 ;;
-      2) qua=53 ;;
-      3) qua=67 ;;
-      4) qua=80 ;;
+      3) qua=90 ;;
+      2) qua=80 ;;
+      1) qua=70 ;;
     esac
-    # exports only if the file does not already exists
-    if [[ ! -f "$temp/quant${2}.png" ]]; then
-      pngquant --quality=0-"$qua" --speed 1 "$1" -o "$temp/quant${2}.png"
-    fi
+    pngquant --quality=0-"$qua" --speed 1 "$1" --force -o "$temp/quantize.png"
   fi
-  # optimize
-  if [[ -z "$interlaced" ]]; then
-    optipng -fix -o4 -i 0 -q "$temp/quant${2}.png" -out "$temp/quant${2}.png"
-  else
-    optipng -fix -o4 -i 1 -q "$temp/quant${2}.png" -out "$temp/quant${2}.png"
-  fi
+}
+
+# create interlaced png
+# tip: never call pngcrush on an already optimized png with optipng, in rare cases pngcrush
+# will not successfully work (impossible to remove extra data)
+interlace() {
+  optipng -i 1 -q "$1" -out "$1"
 }
 
 # optimize png with pngcrush
 # pngcrush wins more or less the same size than optipng but it is better to remove extra datas
-# pngcrush is useful when the file is not generated by pngquant
-optimize() {
-  pngcrush -rem tIME -rem text -rem bKGD -fix -q "$1" "$temp/optimize.png"
-  # interlace
-  [[ -n "$interlaced" ]] && optipng -q -backup -o1 -i 1 "$temp/optimize.png" -out "$temp/optimize.png"
+# pngcrush is especially useful to remove gAMA data added by imagemagick or pngquant
+crush() {
+  # tip: -m 10 force the gAMA removal (otherwise fails sometimes)
+  pngcrush -rem tIME -rem text -rem bKGD -rem gAMA \
+           -m 1 -m 4 -m 7 -m 10 -fix -q "$1" "$temp/crush.png"
+  mv -f "$temp/crush.png" "$1"
 }
 
 # without raw mode, color_indice is used to adds color
@@ -231,11 +227,11 @@ color_indice() {
   # silently in 'echo "$files" | while read l; do' below
   local sign=`awk -v a=$1 'BEGIN { if (a > 4) { print "+" } else if (a < 1) { print "-" } }'`
   if [[ "$sign" == '-' ]]; then
-    echo -e "$STDOUT_WARNING$1$COL_RES"
+    echo -e "$COL_PIN$1$COL_RES"
   elif [[ "$sign" == '+' ]]; then
-    echo -e "$STDOUT_NOTOK$1$COL_RES"
+    echo -e "$COL_RED$1$COL_RES"
   else
-    echo -e "$STDOUT_OK$1$COL_RES"
+    echo -e "$COL_GRE$1$COL_RES"
   fi
 }
 
@@ -256,46 +252,32 @@ percent() {
 # without raw mode, color_percent is used to adds signs, % char and color
 color_percent() {
   if [[ ${1:0:1} == '-' ]]; then
-    echo -e "$STDOUT_OK$1%$COL_RES"
+    echo -e "$COL_GRE$1%$COL_RES"
   elif [[ $1 == '0.0' ]]; then
-    echo -e "$STDOUT_HIGHLIGHT$1%$COL_RES"
+    echo -e "$COL_BLU$1%$COL_RES"
   else
-    echo -e "$STDOUT_NOTOK+$1%$COL_RES"
+    echo -e "$COL_RED+$1%$COL_RES"
   fi
 }
 
 # copy generated file to the correct destination
 # $1 : the original file
-# $2 : the created or optimized file in the temp directory
+# $2 : the quantized or optimized file in the temp directory
 copy_dest() {
-  local base="`basename "$1"`"
-  local filename="${base%.*}"
-  local dest dir filename timestamp
+  local dest
 
   if [[ -n "$directory" ]]; then
+    local base="`basename "$1"`"
+    local filename="${base%.*}"
     dest="$directory/$filename.png"
   elif [[ -n "$file" ]]; then
     dest="$file"
-  # without $file or $directory, the file is generated with a timestamp
-  # from path/to/file.jpg to path/to/file-165600437.jpg
-  else
-    dir=`dirname "$1"`
-    filename="${base%.*}"
-    # if $dir/$filename.png already exists, the file is generated with a timestamp
-    # from path/to/file.png to path/to/file-165600437.png
-    if [[ -f "$dir/$filename.png" ]]; then
-      timestamp=`gdate +%H%M%S%N | cut -c 1-9`
-      dest="$dir/$filename-$timestamp.png"
-    # no timestamp needed
-    else
-      dest="$dir/$filename.png"
-    fi
   fi
 
   # remove starting './'
   [[ "${dest:0:2}" == './' ]] && dest="${dest:2}"
 
-  dir=`dirname "$dest"`
+  local dir=`dirname "$dest"`
   [[ "$dir" != '.' ]] && mkdir -p "$dir"
 
   # existing $dest file is overwritten
@@ -346,8 +328,8 @@ if [[ "$analysis" -eq 1 ]]; then
     # creates the png in a $temp directory
     temp=`mktemp -d /tmp/png.XXXXX`
 
-    fmt=`identify -format %m "$l" 2>/dev/null`
-    if [[ -z "$fmt" ]]; then
+    format=`identify -format %m "$l[0]" 2>/dev/null`
+    if [[ -z "$format" ]]; then
       echo "png: '$l' is not valid" >&2
       # report an error in the log and skip this loop
       echo -n 1 > $log
@@ -355,64 +337,44 @@ if [[ "$analysis" -eq 1 ]]; then
       continue
     fi
 
-    if [[ "$fmt" != 'PNG' ]]; then
-      echo check alpha
-      img "$l" -o "$temp/img" 1>/dev/null
-      if [[ -n `grep '^Alpha: False' "$temp/img"` ]]; then
-        convert "$l[0]" PNG24:"$temp/from.png"
-      else
-        convert "$l[0]" PNG32:"$temp/from.png"
-      fi
+    prepare "$l"
+    # echo "from:$from"
+    # echo "alpha:$alpha"
+    # echo "colors:$colors"
+    # echo "stats:$stats"
+
+    check_few_colors
+
+    # the png has few colors
+    if [[ -n "$few" ]]; then
+      quantize "$from" 3 few
+      crush "$temp/quantize.png"
+      mv "$temp/quantize.png" "$temp/3.png"
+      quantize "$from" 2 few
+      crush "$temp/quantize.png"
+      mv "$temp/quantize.png" "$temp/2.png"
+      quantize "$from" 1 few
+      crush "$temp/quantize.png"
+      mv "$temp/quantize.png" "$temp/1.png"
     else
-      cp "$l" "$temp/from.png"
+      mv "$temp/quantize.png" "$temp/3.png"
+      quantize "$from" 2
+      crush "$temp/quantize.png"
+      mv "$temp/quantize.png" "$temp/2.png"
+      quantize "$from" 1
+      crush "$temp/quantize.png"
+      mv "$temp/quantize.png" "$temp/1.png"
     fi
-    from="$temp/from.png"
-
-    img "$from" -o "$temp/img" 1>/dev/null
-    result=`cat "$temp/img"`
-
-    set_stats
-
-    # in rare cases, some png files include some special color profiles
-    # this color profile will be removed and the color of the image will slightly be different
-    # there is no possibity to keep exactly the same color instead open the image in Photoshop
-    # and export it with a regular sRGB color profile
-    if [[ -n `echo "$result" | grep 'png:iCCP'` ]]; then
-      echo "png: warning color profile detected for '$l'" >&2
-    fi
-
-    # create the png files
-    png "$from" -1 -q -o "$temp/1.png"
-    png "$from" -2 -q -o "$temp/2.png"
-    png "$from" -3 -q -o "$temp/3.png"
-    png "$from" -4 -q -o "$temp/4.png"
 
     ref=`gstat -c%s "$l"`
-    size1=`gstat -c%s "$temp/1.png"`
-    size2=`gstat -c%s "$temp/2.png"`
     size3=`gstat -c%s "$temp/3.png"`
-    size4=`gstat -c%s "$temp/4.png"`
+    size2=`gstat -c%s "$temp/2.png"`
+    size1=`gstat -c%s "$temp/1.png"`
 
-    # compute and display the filesize indice
-    # if you create an image with option -1, the filesize of the generated correspond to the index 1.0
-    # with option -2, the index is 2.0
-    # with option -3, the index is 3.0
-    # with option -4, the index is 4.0
-    # check the filesize of the reference file $l and remap it into this indices range
-    # ie: if the computed indice is 4.5, it means reference file is slightly greater than if you create the png
-    # with the option -4
-    # the indice 4.0 correspond to a great quality for desktop
-    # so, if the reference file is supposed to be used on mobile, this indice shows you that the current size is
-    # really too big
-    # also, if the computed indice is -3.5, it means reference file is really lower than if you create the png
-    # with the option -1
-    # so it's not a good idea to create a new png, the filesize would be increased
     if [[ $ref -le $size2 ]]; then
       indice=`map $ref $size1 $size2 1 2 1`
-    elif [[ $ref -le $size3 ]]; then
-      indice=`map $ref $size2 $size3 2 3 1`
     else
-      indice=`map $ref $size3 $size4 3 4 1`
+      indice=`map $ref $size2 $size3 2 3 1`
     fi
 
     # if map returns an integer, adds a trailing .0
@@ -420,12 +382,6 @@ if [[ "$analysis" -eq 1 ]]; then
 
     # displays the indice. Without raw mode, it is colored
     [[ -z "$raw" ]] && echo -n "`color_indice $indice` " || echo -n "$indice "
-
-    # compute and display the filesize diff for every exported quality, options -1 to -4
-    # to simplify the readability, the percentage will be slightly faked if the indice match
-    # a perfect 1.0 or 2.0 .. or 4.0
-    # before that, we could have indice 1.0 and -0.1%, it's more accurate, but not really readable or useful
-    # the goal of this command is not to win 10 bytes, but 10 or 100 ko
 
     # displays the percentage for the quality 1
     [[ $indice == '1.0' ]] && perc='0.0' || perc=`percent $ref $size1`
@@ -442,11 +398,6 @@ if [[ "$analysis" -eq 1 ]]; then
     [[ -z "$raw" ]] && perc=`color_percent $perc`
     echo -n "$perc "
 
-    # displays the percentage for the quality 4
-    [[ $indice == '4.0' ]] && perc='0.0' || perc=`percent $ref $size4`
-    [[ -z "$raw" ]] && perc=`color_percent $perc`
-    echo -n "$perc "
-
     echo "$stats $l"
 
     rm -rf $temp
@@ -455,15 +406,14 @@ if [[ "$analysis" -eq 1 ]]; then
   checklog_and_exit
 fi
 
-
 # creates png
 echo "$files" | while read l; do
 
   # creates the png in a $temp directory
   temp=`mktemp -d /tmp/png.XXXXX`
 
-  fmt=`identify -format %m "$l" 2>/dev/null`
-  if [[ -z "$fmt" ]]; then
+  format=`identify -format %m "$l[0]" 2>/dev/null`
+  if [[ -z "$format" ]]; then
     echo "png: '$l' is not valid" >&2
     # report an error in the log and skip this loop
     echo -n 1 > $log
@@ -471,107 +421,35 @@ echo "$files" | while read l; do
     continue
   fi
 
-  if [[ "$fmt" != 'PNG' ]]; then
-    # echo check alpha
-    img "$l" -o "$temp/img" 1>/dev/null
-    if [[ -n `grep '^Alpha: False' "$temp/img"` ]]; then
-      convert "$l[0]" PNG24:"$temp/from.png"
-    else
-      convert "$l[0]" PNG32:"$temp/from.png"
+  prepare "$l"
+  # echo "from:$from"
+  # echo "alpha:$alpha"
+  # echo "colors:$colors"
+  # echo "stats:$stats"
+  
+  if [[ -z "$quality" ]]; then
+    # crush overwrite the targeted file, be sure it's not the original 
+    if [[ "$from" = "$l" ]]; then
+      cp "$l" "$temp/from.png"
+      from="$temp/from.png"
     fi
+    crush "$from"
+    copy_dest "$l" "$from"
+
   else
-    cp "$l" "$temp/from.png"
-  fi
-  from="$temp/from.png"
+    check_few_colors
 
-  img "$from" -o "$temp/img" 1>/dev/null
-  result=`cat "$temp/img"`
-
-  set_stats
-
-  # in rare cases, some png files include some special color profiles
-  # this color profile will be removed and the color of the image will slightly be different
-  # there is no possibity to keep exactly the same color instead open the image in Photoshop
-  # and export it with a regular sRGB color profile
-  if [[ -n `echo "$result" | grep 'png:iCCP'` ]]; then
-    echo "png: warning color profile detected for '$l'" >&2
-  fi
-
-  # png without alpha
-  if [[ `echo "$stats" | cut -d ' ' -f 3` == '-' ]]; then
-
-    # export 3 png with pngquant to check if it is not better to compress it as jpeg
-    # use 0-n quality to prevents pngquant exitcode 90
-    pngquant --quality=0-100 --speed 1 "$l" -o "$temp/quant100.png"
-    pngquant --quality=0-90 --speed 1 "$l" -o "$temp/quant90.png"
-    pngquant --quality=0-80 --speed 1 "$l" -o "$temp/quant80.png"
-
-    # the png will be exported as jpeg datas
-    # the name will be file.png but in reality it is a real jpeg
-    if [[ -n `check_jpeg` ]]; then
-      convert -quality 100 "$l" "$temp/convert.jpg"
-      if [[ -n "$quality" ]]; then
-        jpeg "$temp/convert.jpg" -"$quality" -q -o "$temp/jpeg.jpg"
-      else
-        jpeg "$temp/convert.jpg" -4 -q -o "$temp/jpeg.jpg"
-      fi
-      copy_dest "$l" "$temp/jpeg.jpg"
-
-    # regular png
+    # the png has few colors
+    if [[ -n "$few" ]]; then
+      quantize "$from" $quality few
+      [[ -n "$interlaced" ]] && interlace "$temp/quantize.png"
+      crush "$temp/quantize.png"
+      copy_dest "$l" "$temp/quantize.png"
     else
-      # without $quality, just optimize
-      if [[ -z "$quality" ]]; then
-        optimize "$l"
-        copy_dest "$l" "$temp/optimize.png"
-
-      # the png has few colors
-      elif [[ -n `check_few_colors` ]]; then
-        create "$l" $quality few
-        copy_dest "$l" "$temp/quant${quality}.png"
-
-      # $quality is setted and regular png
-      else
-        mv "$temp/quant80.png" "$temp/quant4.png"
-        create "$l" $quality
-        copy_dest "$l" "$temp/quant${quality}.png"
-      fi
-    fi
-
-  # png with alpha
-  else
-    # without $quality, just optimize
-    if [[ -z "$quality" ]]; then
-      optimize "$l"
-      copy_dest "$l" "$temp/optimize.png"
-
-    # $quality is setted, each quality has a special encoding
-    #
-    # important: when the png has alpha, pngquant creates images slightly more saturated, this can be a real problem
-    # that is why we only use below posterize for quality 3 and 4
-    # then pngquant for mobile optimization
-    # note: with alpha we do not use pngquant quality 1 and 2 as expected but 2 and 4 for better quality result
-    else
-      if [[ $quality -eq 4 ]]; then
-        posterize -4 "$l" -q -o "$temp/posterize.png"
-        optimize "$temp/posterize.png"
-        copy_dest "$l" "$temp/optimize.png"
-
-      else
-        posterize -1 "$l" -q -o "$temp/posterize.png"
-
-        if [[ $quality -eq 3 ]]; then
-          optimize "$temp/posterize.png"
-          copy_dest "$l" "$temp/optimize.png"
-
-        elif [[ $quality -eq 2 ]]; then
-          create "$temp/posterize.png" 4
-          copy_dest "$l" "$temp/quant4.png"
-
-        else
-          create "$temp/posterize.png" 2
-          copy_dest "$l" "$temp/quant2.png"
-        fi
-      fi
+      [[ "$quality" -ne 3 ]] && quantize "$from" $quality
+      [[ -n "$interlaced" ]] && interlace "$temp/quantize.png"
+      crush "$temp/quantize.png"
+      copy_dest "$l" "$temp/quantize.png"
     fi
   fi
 
