@@ -74,18 +74,18 @@ __prompt_git() {
 
   local output
   # if initial commit, branch status is 'init'
-  if [[ -n `echo "$status" | grep "^# Initial commit"` ]]; then
+  if [[ -n `echo "$status" | egrep "^(# )*Initial commit"` ]]; then
     output="${PROMPT_BRANCH}init${COL_RES}"
   else
-    output=`echo "$status" | grep '^# On branch' | cut -f 4 -d ' '`
+    output=`echo "$status" | egrep '^(# )*On branch' | cut -f 4 -d ' '`
     output="${PROMPT_BRANCH}$output${COL_RES}"
   fi
 
   local sta mod unt
   # check for staged, modified or untracked files
-  sta=`echo "$status" | grep "^# Changes to be committed"`
-  mod=`echo "$status" | grep "^# Changes not staged for commit"`
-  unt=`echo "$status" | grep "^# Untracked files"`
+  sta=`echo "$status" | egrep "^(# )*Changes to be committed"`
+  mod=`echo "$status" | egrep "^(# )*Changes not staged for commit"`
+  unt=`echo "$status" | egrep "^(# )*Untracked files"`
 
   local vcs=
   [[ $PROMPT_VCS -eq 1 ]] && vcs='git '
