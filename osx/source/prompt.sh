@@ -77,7 +77,7 @@ __prompt_git() {
   if [[ -n `echo "$status" | egrep "^(# )*Initial commit"` ]]; then
     output="${PROMPT_BRANCH}init${COL_RES}"
   else
-    output=`echo "$status" | egrep '^(# )*On branch' | cut -f 4 -d ' '`
+    output=`echo "$status" | egrep '^(# )*On branch' | rev | cut -f 1 -d ' ' | rev`
     output="${PROMPT_BRANCH}$output${COL_RES}"
   fi
 

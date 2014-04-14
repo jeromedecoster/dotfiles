@@ -26,8 +26,11 @@ alias gl="git log --pretty='format:%Cgreen%h%Creset %an - %s' --graph"
 alias gpom="git push -u origin master"
 # back to the last commit (undo local modifications)
 alias grh="git reset --hard"
+alias gr="git remote --verbose"
 alias gs="git status"
 # git ignore is my .dotfiles/osx/bin/git-ignore extension
 alias gig="git ignore"
 alias gsu="git summary"
 alias gun="git undo"
+
+alias ni="npm install"
